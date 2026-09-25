@@ -13,3 +13,7 @@ out/
 .DS_Store
 *.tsbuildinfo
 .vercel
+
+# pnpm
+.pnpm-store/
+.superpowers/
