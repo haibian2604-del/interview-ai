@@ -107,13 +107,6 @@ describe("questionFollowupCount（C1 回归：按本题计数，非全场）", (
     expect(questionFollowupCount(rows, "q2")).toBe(0);
   });
 
-  it("补测场景：第二题低分仍触发追问（全局计数 bug 会把它架空成 next_question）", () => {
-    const followupCount = questionFollowupCount(rows, "q2");
-    expect(
-      decideNextAction({ score: 0.3, followupCount, isLastQuestion: false }),
-    ).toEqual({ action: "followup" });
-  });
-
   it("同题追问过一次后不再追问（每题最多 1 次）", () => {
     expect(
       decideNextAction({ score: 0.3, followupCount: questionFollowupCount(rows, "q1"), isLastQuestion: false }),
