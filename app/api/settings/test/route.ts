@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { getModel } from "@/lib/ai/provider";
-import { resolveConfig, type UserLlmSettings } from "@/lib/settings/service";
+import { resolveConfig, type LlmConfig, type UserLlmSettings } from "@/lib/settings/service";
 import { encryptSecret } from "@/lib/settings/crypto";
 import { optionalEnv } from "@/lib/env";
 import { COPY } from "@/lib/copy";
@@ -69,6 +69,9 @@ export async function POST(request: Request) {
     llmEvalModel: optionalEnv("LLM_EVAL_MODEL"),
   };
 
+  // 提升到 try 外：失败时 catch 仍能拿到已合成的 cfg，抹除其解密后的明文 apiKey
+  let cfg: LlmConfig | undefined;
+
   try {
     const synthesized: UserLlmSettings = {
       llmBaseUrl: draftBaseUrl ?? settings?.llm_base_url ?? "",
@@ -76,13 +79,18 @@ export async function POST(request: Request) {
       llmChatModel: draftChatModel ?? settings?.llm_chat_model ?? "",
       llmEvalModel: settings?.llm_eval_model ?? "",
     };
-    const cfg = resolveConfig(synthesized, env);
+    cfg = resolveConfig(synthesized, env);
     // 一句即可的探针：走廉价 Agent（resume-analyst → chatModel）
     await generateText({ model: getModel("resume-analyst", cfg), prompt: "ping" });
     return NextResponse.json({ ok: true, model: cfg.chatModel });
   } catch (e) {
     // 业务失败 ≠ 传输失败：HTTP 200 + ok:false
+    // 抹除列表覆盖 key 的三个来源：cfg.apiKey 是 resolveConfig 的最终生效者
+    // （草稿明文 / 已存解密结果 / env 任一来源都汇入它）；cfg 尚未合成时由
+    // draftApiKey / env.llmApiKey 兜底。上游网关（one-api/new-api 系）在错误
+    // 消息中回显 Authorization key 是真实行为，明文绝不进响应体/日志。
     const summary = scrubSummary(e instanceof Error ? e.message : String(e), [
+      cfg?.apiKey,
       draftApiKey,
       env.llmApiKey,
     ]);
