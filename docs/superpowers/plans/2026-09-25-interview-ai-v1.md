@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 包管理器：npm；Node ≥ 20
+- 包管理器：pnpm（≥ 9）；Node ≥ 20；不提交 `pnpm-lock.yaml` 以外的其他锁文件
 - TypeScript `strict: true`，不动摇
 - 路由保护：未登录访问受保护页 → 重定向 `/login`（middleware 统一处理）
 - 所有 Supabase 表启用 RLS，策略为 `user_id = auth.uid()`
@@ -33,24 +33,24 @@
 - Create: `package.json`, `tsconfig.json`, `next.config.ts`, `vitest.config.ts`, `app/layout.tsx`, `app/page.tsx`（由脚手架生成后微调）
 
 **Interfaces:**
-- Produces: 可运行的 Next.js 应用；`@/*` import alias；`npm run test`（vitest 单测）
+- Produces: 可运行的 Next.js 应用；`@/*` import alias；`pnpm test`（vitest 单测）
 
 - [ ] **Step 1: 在临时目录生成 Next.js 应用并迁入仓库**
 
 ```bash
 cd /Users/kk/code/project/interview-ai
-npx create-next-app@latest tmp-scaffold --ts --tailwind --eslint --app --no-src-dir --import-alias "@/*" --use-npm --yes
+npx create-next-app@latest tmp-scaffold --ts --tailwind --eslint --app --no-src-dir --import-alias "@/*" --use-pnpm --yes
 rsync -a tmp-scaffold/ ./ && rm -rf tmp-scaffold
-npm install
+pnpm install
 ```
 
-注意：仓库非空（有 `docs/`、`.git`），create-next-app 拒绝原地生成，所以先在 `tmp-scaffold` 生成再 rsync 进来。`.gitignore` 保留我们已有的版本（不要用脚手架的覆盖）。
+注意：仓库非空（有 `docs/`、`.git`），create-next-app 拒绝原地生成，所以先在 `tmp-scaffold` 生成再 rsync 进来。`.gitignore` 保留我们已有的版本（不要用脚手架的覆盖），并确认包含 `.pnpm-store/` 与 `node_modules/`。
 
 - [ ] **Step 2: 安装运行时依赖**
 
 ```bash
-npm install ai @ai-sdk/openai-compatible zod @supabase/supabase-js @supabase/ssr pdf-parse recharts
-npm install -D vitest @types/pdf-parse
+pnpm add ai @ai-sdk/openai-compatible zod @supabase/supabase-js @supabase/ssr pdf-parse recharts
+pnpm add -D vitest @types/pdf-parse
 ```
 
 - [ ] **Step 3: 初始化 shadcn/ui 并添加基础组件**
@@ -74,11 +74,11 @@ export default defineConfig({
 });
 ```
 
-`package.json` scripts 增加：`"test": "vitest run"`。
+`package.json` scripts 增加：`"test": "vitest run"`（pnpm 下去掉无必要；确认 scripts 里有 `"dev"`/`"build"`/`"start"`/`"test"`）。
 
 - [ ] **Step 5: 验证**
 
-Run: `npm run build && npm run test`
+Run: `pnpm build && pnpm test`
 Expected: build 成功（无 ESLint 错误）；vitest 输出 "No test files found" 可接受（exit code 需为 0，若 vitest 因无测试报错，先建占位测试 `tests/smoke.test.ts`：`import { expect, test } from "vitest"; test("smoke", () => expect(1).toBe(1));`）
 
 - [ ] **Step 6: Commit**
@@ -149,7 +149,7 @@ describe("getModel / requireEnv", () => {
 
 - [ ] **Step 2: 运行确认失败**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: FAIL（模块不存在）
 
 - [ ] **Step 3: 实现**
@@ -200,7 +200,7 @@ export function getModel(kind: AgentKind) {
 
 - [ ] **Step 4: 测试通过**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: PASS (4 tests)
 
 - [ ] **Step 5: 写 `.env.example`**
@@ -312,7 +312,7 @@ describe("ReportSchema", () => {
 
 - [ ] **Step 2: 运行确认失败**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: FAIL
 
 - [ ] **Step 3: 实现**
@@ -385,7 +385,7 @@ export type Report = z.infer<typeof ReportSchema>;
 
 - [ ] **Step 4: 测试通过**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -454,7 +454,7 @@ describe("decideNextAction", () => {
 
 - [ ] **Step 2: 运行确认失败**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: FAIL
 
 - [ ] **Step 3: 实现**
@@ -514,7 +514,7 @@ export function decideNextAction(params: {
 
 - [ ] **Step 4: 测试通过**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
@@ -908,8 +908,8 @@ export default function Home() {
 
 - [ ] **Step 3: 验证**
 
-Run: `npm run build`
-Expected: 成功。本地 `npm run dev`（`.env.local` 配好 Supabase 后），未登录访问 `/dashboard` 应重定向到 `/login`。
+Run: `pnpm build`
+Expected: 成功。本地 `pnpm dev`（`.env.local` 配好 Supabase 后），未登录访问 `/dashboard` 应重定向到 `/login`。
 
 - [ ] **Step 4: Commit**
 
@@ -1041,7 +1041,7 @@ describe("buildResumeAnalystMessages", () => {
 
 - [ ] **Step 2: 运行确认失败**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: FAIL
 
 - [ ] **Step 3: 实现**
@@ -1276,7 +1276,7 @@ export async function generateReport(input: {
 
 - [ ] **Step 4: 测试通过**
 
-Run: `npm run test`
+Run: `pnpm test`
 Expected: 全部 PASS
 
 - [ ] **Step 5: Commit**
@@ -1370,7 +1370,7 @@ export async function POST(request: Request) {
 
 - [ ] **Step 4: 验证**
 
-Run: `npm run build`
+Run: `pnpm build`
 Expected: 成功。dev 环境上传一份真实 PDF → `resumes` 表出现记录、Storage 出现文件、页面列表可见；粘贴文本路径同样可建简历。
 
 - [ ] **Step 5: Commit**
@@ -1483,7 +1483,7 @@ export async function POST(request: Request) {
 
 - [ ] **Step 3: 验证**
 
-Run: `npm run build` → 成功。dev：选简历 + 贴 JD 创建 → `questions` 表出现 N 行、interview 状态 `ready`、页面跳转（面试页此时 404，属预期）。
+Run: `pnpm build` → 成功。dev：选简历 + 贴 JD 创建 → `questions` 表出现 N 行、interview 状态 `ready`、页面跳转（面试页此时 404，属预期）。
 
 - [ ] **Step 4: Commit**
 
@@ -1656,7 +1656,7 @@ export async function POST(request: Request) {
 
 - [ ] **Step 3: 验证**
 
-Run: `npm run build` → 成功。dev 完整跑一场 3 题小面试（创建时题数填 3）：
+Run: `pnpm build` → 成功。dev 完整跑一场 3 题小面试（创建时题数填 3）：
 
 1. 高质量回答应直接进下一题（`X-Interview-Action: next_question`）；
 2. 故意答「不知道」应触发追问（`followup`），追问后再答进入下一题；
@@ -1768,7 +1768,7 @@ export async function POST(request: Request) {
 
 - [ ] **Step 3: 验证**
 
-Run: `npm run build` → 成功。dev：打开 Task 10 完成的那场面试的报告页 → 生成报告 → 总分/雷达图/逐题卡齐全；刷新数据仍在；重复点「生成报告」不重复写表（幂等）。
+Run: `pnpm build` → 成功。dev：打开 Task 10 完成的那场面试的报告页 → 生成报告 → 总分/雷达图/逐题卡齐全；刷新数据仍在；重复点「生成报告」不重复写表（幂等）。
 
 - [ ] **Step 4: Commit**
 
@@ -1805,7 +1805,7 @@ const { data: interviews } = await supabase
 
 - [ ] **Step 2: 验证**
 
-Run: `npm run build` → 成功。dev：此前所有测试场景在列表可见、状态正确、可跳转。
+Run: `pnpm build` → 成功。dev：此前所有测试场景在列表可见、状态正确、可跳转。
 
 - [ ] **Step 3: Commit**
 
@@ -1826,12 +1826,12 @@ git commit -m "feat(dashboard): interview history list with status and scores"
 
 - [ ] **Step 1: 全量回归**
 
-Run: `npm run build && npm run test`
+Run: `pnpm build && pnpm test`
 Expected: 全部通过
 
 - [ ] **Step 2: 写 README**
 
-内容：项目简介；架构（五个 Agent + 编排器的文字图，摘自 `docs/PLAN.md`）；本地开发（env 配置、Supabase migration 执行方式、`npm run dev`）；部署到 Vercel（导入 repo + 填 `.env.example` 全部变量）；已知边界（仅 PDF、无语音）；二期路线（语音 WebRTC、评分曲线、支付、i18n）。
+内容：项目简介；架构（五个 Agent + 编排器的文字图，摘自 `docs/PLAN.md`）；本地开发（env 配置、Supabase migration 执行方式、`pnpm dev`）；部署到 Vercel（导入 repo + 填 `.env.example` 全部变量）；已知边界（仅 PDF、无语音）；二期路线（语音 WebRTC、评分曲线、支付、i18n）。
 
 - [ ] **Step 3: Commit + Push**
 
