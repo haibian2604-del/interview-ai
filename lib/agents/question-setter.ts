@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
 import { splitInstructions } from "@/lib/ai/instructions";
+import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { QuestionSetSchema, type Question, type ResumeProfile } from "@/lib/ai/schemas";
 
@@ -49,10 +50,19 @@ export async function generateQuestions(
     count: number;
   },
 ): Promise<Question[]> {
-  const { object } = await generateObject({
-    model: getModel("question-setter", await getLlmConfig(userId)),
-    schema: QuestionSetSchema,
-    ...splitInstructions(buildQuestionSetterMessages(input)),
+  const cfg = await getLlmConfig(userId);
+  const result = await withSchemaRetry(QuestionSetSchema, async (corrective) => {
+    const built = buildQuestionSetterMessages(input);
+    const { instructions, messages } = splitInstructions(
+      corrective ? [...built, { role: "user" as const, content: corrective }] : built,
+    );
+    const { object } = await generateObject({
+      model: getModel("question-setter", cfg),
+      schema: QuestionSetSchema,
+      instructions,
+      messages,
+    });
+    return object;
   });
-  return object.questions;
+  return result.questions;
 }

@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
 import { splitInstructions } from "@/lib/ai/instructions";
+import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { EvaluationSchema, type Evaluation, type Question } from "@/lib/ai/schemas";
@@ -35,10 +36,18 @@ export async function evaluateAnswer(
     transcript: { role: string; content: string }[];
   },
 ): Promise<Evaluation> {
-  const { object } = await generateObject({
-    model: getModel("evaluator", await getLlmConfig(userId)),
-    schema: EvaluationSchema,
-    ...splitInstructions(buildEvaluatorMessages(input)),
+  const cfg = await getLlmConfig(userId);
+  return withSchemaRetry(EvaluationSchema, async (corrective) => {
+    const built = buildEvaluatorMessages(input);
+    const { instructions, messages } = splitInstructions(
+      corrective ? [...built, { role: "user" as const, content: corrective }] : built,
+    );
+    const { object } = await generateObject({
+      model: getModel("evaluator", cfg),
+      schema: EvaluationSchema,
+      instructions,
+      messages,
+    });
+    return object;
   });
-  return object;
 }

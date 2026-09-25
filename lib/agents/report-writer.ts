@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
 import { splitInstructions } from "@/lib/ai/instructions";
+import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { ReportSchema, type Evaluation, type Report } from "@/lib/ai/schemas";
@@ -34,10 +35,18 @@ export async function generateReport(
     evaluations: Evaluation[];
   },
 ): Promise<Report> {
-  const { object } = await generateObject({
-    model: getModel("report-writer", await getLlmConfig(userId)),
-    schema: ReportSchema,
-    ...splitInstructions(buildReportMessages(input)),
+  const cfg = await getLlmConfig(userId);
+  return withSchemaRetry(ReportSchema, async (corrective) => {
+    const built = buildReportMessages(input);
+    const { instructions, messages } = splitInstructions(
+      corrective ? [...built, { role: "user" as const, content: corrective }] : built,
+    );
+    const { object } = await generateObject({
+      model: getModel("report-writer", cfg),
+      schema: ReportSchema,
+      instructions,
+      messages,
+    });
+    return object;
   });
-  return object;
 }
