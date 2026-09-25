@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED = ["/dashboard", "/resumes", "/interview", "/report"];
+const PROTECTED = ["/dashboard", "/resumes", "/settings", "/interview", "/report"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

@@ -111,6 +111,12 @@ export default async function DashboardPage() {
           </p>
           <nav className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">
             <Link
+              href="/settings"
+              className="text-sm text-ink/70 underline decoration-ink/30 underline-offset-4 hover:text-ink"
+            >
+              {copy.navSettings}
+            </Link>
+            <Link
               href="/resumes"
               className="text-sm text-ink/70 underline decoration-ink/30 underline-offset-4 hover:text-ink"
             >

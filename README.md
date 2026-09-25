@@ -68,10 +68,13 @@ cp .env.example .env.local
 | `LLM_API_KEY` | 该端点的 API Key |
 | `LLM_CHAT_MODEL` | 廉价模型：简历分析/出题/面试官话术使用（如 `gpt-4o-mini`） |
 | `LLM_EVAL_MODEL` | 可选：强模型，评估/报告专用（如 `gpt-4o`）；不配则回落到 `LLM_CHAT_MODEL` |
+| `SETTINGS_SECRET` | 用户级 LLM 设置（API Key）的加密密钥：任意高熵随机串（如 `openssl rand -base64 32` 生成）。丢失或更换后，已存用户 key 无法解密（自动回落系统默认，设置页会提示重新填写），务必妥善备份 |
 
 ### 3. 初始化数据库
 
 打开 Supabase Dashboard → **SQL Editor**，把 [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) 的全部内容粘贴进去执行。该脚本建 7 张表（profiles / resumes / interviews / questions / messages / evaluations / reports）并启用 RLS，同时创建简历 PDF 的 Storage bucket 与策略。
+
+再依次执行 [`supabase/migrations/0002_user_settings.sql`](supabase/migrations/0002_user_settings.sql)，建 user_settings 表（用户级 LLM 设置，启用 RLS）。未执行 0002 时设置页可浏览但无法保存（保存会提示「系统尚未启用该功能」）。
 
 ### 4. 开启 Auth 提供方
 
@@ -106,8 +109,10 @@ app/
     interview/[id]/status/ # 轮询面试状态（刷新恢复）
     interview/[id]/abandon/# 放弃面试（灰章「缺考」）
     interview/report/      # 报告 Agent 汇总生成报告
+    settings/              # 用户级 LLM 设置：GET 掩码形态 / PUT 保存（加密入库）
+    settings/test/         # 测试连接（草稿可测，业务失败 HTTP 200）
   auth/callback/           # 登录回跳换会话
-  login/ dashboard/ resumes/ interview/new/ interview/[id]/ report/[id]/   # 页面
+  login/ dashboard/ resumes/ settings/ interview/new/ interview/[id]/ report/[id]/   # 页面
 lib/
   agents/                  # 五个角色 Agent（resume-analyst / question-setter /
                            #   interviewer / evaluator / report-writer）
@@ -116,14 +121,25 @@ lib/
   ai/                      # provider.ts（OpenAI 兼容工厂，按 Agent 分模型）+ schemas.ts（Zod）
   supabase/                # client / server / middleware helpers
   resume/                  # pdf.ts（PDF 抽取封装）
+  settings/                # crypto.ts（AES-256-GCM）+ service.ts（配置解析/掩码）+ validation.ts（入参校验）
   copy.ts                  # 全部中文文案集中管理
-supabase/migrations/       # 0001_init.sql：建表 + RLS + Storage
-tests/                     # vitest：orchestrator / agents / ai / interview / resume
+supabase/migrations/       # 0001_init.sql：建表 + RLS + Storage；0002_user_settings.sql：用户级 LLM 设置
+tests/                     # vitest：orchestrator / agents / ai / interview / resume / settings / api
 ```
 
 ## 设计语言
 
 整站视觉是**一册考官评分簿（Examiner's Rubric）**：用户在「作答」，面试官在「批改」，系统在「记录」。三色油墨纪律——黑印刷（结构与正文）、红批改（只出现在分数、批注、雷达图等评估时刻）、蓝作答（只属于用户的输入与进行中状态），任何 UI 不引入第四种墨色；配细表格线、印章式结果标记与阻尼动效。完整规范见 [docs/superpowers/briefs/2026-09-25-mirror-v1-ux-brief.md](docs/superpowers/briefs/2026-09-25-mirror-v1-ux-brief.md)。
+
+## 用户自带 LLM 配置（设置页）
+
+每位用户可在 **/settings**（Dashboard 卷首「设置」入口）配置自己的 OpenAI 兼容 LLM：Base URL、API Key、对话模型、评估模型，不必依赖部署者提供的系统默认。
+
+- **回落语义（逐字段）**：任何字段留空即回落系统默认（`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_CHAT_MODEL` / `LLM_EVAL_MODEL`）；已填写的字段优先生效。评估模型留空时，评估/报告回落到对话模型（系统级同理）。
+- **保存即加密入库**：API Key 由服务端以 AES-256-GCM 加密后存入 `user_settings.llm_api_key_enc`，加密密钥由 `SETTINGS_SECRET` 经 SHA-256 派生。页面与接口只回显掩码（`****` + 末 4 位），明文与密文均不回显、不写日志。
+- **SETTINGS_SECRET 的作用与丢失后果**：它是唯一能解出用户 key 的密钥。丢失或更换后，已存密文无法解密——调用自动回落系统默认 LLM，设置页会显示红墨批注提示重新填写；不会影响其余功能。请生成后妥善备份（如密码管理器）。
+- **测试连接**：保存前即可验证草稿配置——「测试连接」按钮把当前表单里非空的草稿字段临时覆盖到现有配置上，向该端点发一次一句话补全探测；草稿 key 仅本次请求内存使用，绝不写库、绝不回显。不带任何草稿时测试已保存配置。
+- **前置条件**：需先应用 0002 迁移（见「本地开发 → 初始化数据库」）；未应用时保存接口返回「系统尚未启用该功能」。
 
 ## 已知边界（v1）
 
@@ -131,6 +147,7 @@ tests/                     # vitest：orchestrator / agents / ai / interview / r
 - **无语音**：文字对话先行，语音为二期。
 - **单用户练习额度未做**：未做练习额度。
 - **移动端为降级体验**：桌面优先设计，小屏幕可用但非完整体验。
+- **用户 API key 服务端 AES-256-GCM 加密存储，数据库被攻破且 SETTINGS_SECRET 泄漏时可见**：单靠其一（仅库泄露或仅密钥泄露）不可逆。
 
 ## 二期路线
 
