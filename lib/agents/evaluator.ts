@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { splitInstructions } from "@/lib/ai/instructions";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { EvaluationSchema, type Evaluation, type Question } from "@/lib/ai/schemas";
@@ -37,7 +38,7 @@ export async function evaluateAnswer(
   const { object } = await generateObject({
     model: getModel("evaluator", await getLlmConfig(userId)),
     schema: EvaluationSchema,
-    messages: buildEvaluatorMessages(input),
+    ...splitInstructions(buildEvaluatorMessages(input)),
   });
   return object;
 }

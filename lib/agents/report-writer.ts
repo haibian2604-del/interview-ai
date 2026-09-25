@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { splitInstructions } from "@/lib/ai/instructions";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { ReportSchema, type Evaluation, type Report } from "@/lib/ai/schemas";
@@ -36,7 +37,7 @@ export async function generateReport(
   const { object } = await generateObject({
     model: getModel("report-writer", await getLlmConfig(userId)),
     schema: ReportSchema,
-    messages: buildReportMessages(input),
+    ...splitInstructions(buildReportMessages(input)),
   });
   return object;
 }

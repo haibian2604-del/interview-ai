@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { splitInstructions } from "@/lib/ai/instructions";
 import { getLlmConfig } from "@/lib/settings/service";
 import { QuestionSetSchema, type Question, type ResumeProfile } from "@/lib/ai/schemas";
 
@@ -51,7 +52,7 @@ export async function generateQuestions(
   const { object } = await generateObject({
     model: getModel("question-setter", await getLlmConfig(userId)),
     schema: QuestionSetSchema,
-    messages: buildQuestionSetterMessages(input),
+    ...splitInstructions(buildQuestionSetterMessages(input)),
   });
   return object.questions;
 }

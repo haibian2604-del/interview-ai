@@ -1,5 +1,6 @@
 import { streamText } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { splitInstructions } from "@/lib/ai/instructions";
 import { getLlmConfig } from "@/lib/settings/service";
 import type { Question } from "@/lib/ai/schemas";
 
@@ -48,6 +49,6 @@ export async function streamInterviewer(
 ) {
   return streamText({
     model: getModel("interviewer", await getLlmConfig(userId)),
-    messages: buildInterviewerMessages(mode, payload),
+    ...splitInstructions(buildInterviewerMessages(mode, payload)),
   });
 }
