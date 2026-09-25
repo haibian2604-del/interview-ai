@@ -72,3 +72,23 @@ export function deriveChatMessages(
   }
   return messages;
 }
+
+/** Agent 侧的角色口径：追问轮回答（role=followup）也是候选人的原话（C2） */
+export type AgentRole = "interviewer" | "candidate";
+
+export function toAgentRole(role: string): AgentRole {
+  return role === "interviewer" ? "interviewer" : "candidate";
+}
+
+/**
+ * 本题的追问轮计数（C1 回归收口）：状态机契约是「本题未追问过才追问」
+ * （state-machine.ts），必须按当前题的 question_id 过滤，绝不能用全场 followup 行数
+ * ——全场计数会让任一题追问过后架空其后所有题的追问，也会污染 role 判定。
+ */
+export function questionFollowupCount(
+  rows: { role: string; question_id: string | null }[],
+  questionId: string,
+): number {
+  return rows.filter((r) => r.role === "followup" && r.question_id === questionId)
+    .length;
+}

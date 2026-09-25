@@ -194,6 +194,7 @@ export function ChatStream(props: ChatStreamProps) {
     });
     const reader = res.body?.getReader();
     if (!reader) {
+      appendToMessage(id, COPY.interview.streamInterrupted);
       setError(copy.streamBroken);
       return false;
     }
@@ -207,7 +208,9 @@ export function ChatStream(props: ChatStreamProps) {
       appendToMessage(id, decoder.decode());
       return true;
     } catch {
-      // 流式断流：保留已收到的部分，提示刷新可恢复落盘卷面
+      // 流式断流（I2）：保留已收到的部分并补截断标记（与刷新还原的落盘卷面一致），
+      // 提示刷新可恢复
+      appendToMessage(id, COPY.interview.streamInterrupted);
       setError(copy.streamBroken);
       return false;
     }

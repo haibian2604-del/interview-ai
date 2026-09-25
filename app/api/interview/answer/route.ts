@@ -4,7 +4,7 @@ import { evaluateAnswer } from "@/lib/agents/evaluator";
 import { streamInterviewer } from "@/lib/agents/interviewer";
 import { averageScore, decideNextAction } from "@/lib/orchestrator/state-machine";
 import type { Evaluation } from "@/lib/ai/schemas";
-import { rowToQuestion } from "@/lib/interview/mappers";
+import { rowToQuestion, questionFollowupCount, toAgentRole, type AgentRole } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
 import { COPY } from "@/lib/copy";
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         .maybeSingle(),
       supabase
         .from("messages")
-        .select("role, content")
+        .select("role, content, question_id")
         .eq("interview_id", interviewId)
         .order("created_at"),
     ]);
@@ -73,28 +73,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "题目不存在" }, { status: 404 });
   }
 
-  const followupCount = (history ?? []).filter((m) => m.role === "followup").length;
-  const { error: candidateInsertError } = await supabase.from("messages").insert({
-    interview_id: interviewId,
-    question_id: question.id,
-    role: followupCount > 0 ? "followup" : "candidate",
-    content: answer,
-  });
-  if (candidateInsertError) {
-    return NextResponse.json({ error: candidateInsertError.message }, { status: 500 });
+  // C1：按「本题」计追问轮（状态机契约），不能用全场 followup 行数
+  const followupCount = questionFollowupCount(history ?? [], question.id);
+  const { data: insertedMessage, error: candidateInsertError } = await supabase
+    .from("messages")
+    .insert({
+      interview_id: interviewId,
+      question_id: question.id,
+      role: followupCount > 0 ? "followup" : "candidate",
+      content: answer,
+    })
+    .select("id")
+    .single();
+  if (candidateInsertError || !insertedMessage) {
+    return NextResponse.json(
+      { error: candidateInsertError?.message ?? "作答落盘失败" },
+      { status: 500 },
+    );
   }
+
+  // C2：追问轮回答（role=followup）也是候选人的原话，喂 Agent 前归一，
+  // 否则评估里被标成「面试官：」、面试官对话史里被当成 assistant 自己的话
+  const agentHistory: { role: AgentRole; content: string }[] = (history ?? []).map(
+    (m) => ({ role: toAgentRole(m.role), content: m.content }),
+  );
 
   // 评估 Agent（独立人格，只看题目与回答原文）；DB 行先过 camelCase 映射铁律
   let evaluation: Evaluation;
   try {
     evaluation = await evaluateAnswer({
       question: rowToQuestion(question),
-      transcript: [
-        ...(history ?? []).map((m) => ({ role: m.role, content: m.content })),
-        { role: "candidate", content: answer },
-      ],
+      transcript: [...agentHistory, { role: "candidate", content: answer }],
     });
   } catch (e) {
+    // I1：评估失败回滚刚插入的 candidate 行——重试不重复落盘、transcript 不被污染
+    const { error: rollbackError } = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", insertedMessage.id);
+    if (rollbackError) {
+      console.error("[interview/answer] rollback candidate message failed:", rollbackError.message);
+    }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "评估失败" },
       { status: 502 },
@@ -135,14 +154,10 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // 组装面试官话术 payload
-  const typedHistory = (history ?? []) as {
-    role: "interviewer" | "candidate" | "followup";
-    content: string;
-  }[];
+  // 组装面试官话术 payload（history 用 C2 归一后的角色：followup 轮回答也是候选人）
   const payload: Parameters<typeof streamInterviewer>[1] = {
     question: rowToQuestion(question),
-    history: [...typedHistory, { role: "candidate" as const, content: answer }],
+    history: [...agentHistory, { role: "candidate" as const, content: answer }],
     followupText: `针对回答的不足（${evaluation.improvements}），围绕追问锚点「${question.followup_anchor}」提出一个具体追问。`,
   };
   if (next.action === "next_question") {
@@ -184,6 +199,7 @@ export async function POST(request: Request) {
       if (error) throw new Error(error.message);
     },
     "interview/answer",
+    COPY.interview.streamInterrupted,
   );
 
   return new Response(textStreamForClient, {

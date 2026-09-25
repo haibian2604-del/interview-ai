@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { deriveChatMessages, rowToQuestion } from "@/lib/interview/mappers";
+import { decideNextAction } from "@/lib/orchestrator/state-machine";
+import {
+  deriveChatMessages,
+  questionFollowupCount,
+  rowToQuestion,
+  toAgentRole,
+} from "@/lib/interview/mappers";
 
 describe("rowToQuestion（snake_case → camelCase 映射铁律）", () => {
   it("把 questions 表行映射为领域 Question", () => {
@@ -84,5 +90,41 @@ describe("deriveChatMessages（卷面还原）", () => {
     );
     expect(messages[0].questionIdx).toBeNull();
     expect(messages[0].isFollowupQuestion).toBe(false);
+  });
+});
+
+describe("questionFollowupCount（C1 回归：按本题计数，非全场）", () => {
+  const rows = [
+    { role: "interviewer", content: "第一题", question_id: "q1" },
+    { role: "candidate", content: "首答", question_id: "q1" },
+    { role: "interviewer", content: "追问", question_id: "q1" },
+    { role: "followup", content: "追后补充", question_id: "q1" },
+    { role: "interviewer", content: "转场 + 第二题", question_id: "q1" },
+  ];
+
+  it("Q1 已追问：本题计数为 1，Q2 计数为 0", () => {
+    expect(questionFollowupCount(rows, "q1")).toBe(1);
+    expect(questionFollowupCount(rows, "q2")).toBe(0);
+  });
+
+  it("补测场景：第二题低分仍触发追问（全局计数 bug 会把它架空成 next_question）", () => {
+    const followupCount = questionFollowupCount(rows, "q2");
+    expect(
+      decideNextAction({ score: 0.3, followupCount, isLastQuestion: false }),
+    ).toEqual({ action: "followup" });
+  });
+
+  it("同题追问过一次后不再追问（每题最多 1 次）", () => {
+    expect(
+      decideNextAction({ score: 0.3, followupCount: questionFollowupCount(rows, "q1"), isLastQuestion: false }),
+    ).toEqual({ action: "next_question" });
+  });
+});
+
+describe("toAgentRole（C2 回归：followup 轮回答按候选人喂 Agent）", () => {
+  it("interviewer → interviewer；candidate / followup → candidate", () => {
+    expect(toAgentRole("interviewer")).toBe("interviewer");
+    expect(toAgentRole("candidate")).toBe("candidate");
+    expect(toAgentRole("followup")).toBe("candidate");
   });
 });

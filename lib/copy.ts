@@ -129,6 +129,7 @@ export const COPY = {
     startFailed: "考官未能开场，请刷新本页重试。",
     answerFailed: "作答没有送达，请重试一次。",
     streamBroken: "流式中断：考官的话没有记全，刷新本页可恢复已落盘的卷面。",
+    streamInterrupted: "……（话术中断）",
     llmFailed: "考官暂时无法落笔，请稍后重试。",
     unauthorized: "未登录，请回登录页重新进场。",
     loadFailed: "卷面没有取回，请刷新本页。",
