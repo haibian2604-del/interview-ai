@@ -5,19 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { COPY } from "@/lib/copy";
-
-// 印刷语义错误批注：红墨 #a63a2f 仅用于错误/批改时刻
-function ErrorAnnotation({ text }: { text: string }) {
-  return (
-    <p
-      role="alert"
-      className="-rotate-1 border-l-2 border-ink-red bg-ink-red/[0.04] px-3 py-2 text-sm leading-6 text-ink-red"
-    >
-      {text}
-    </p>
-  );
-}
 
 function LoginCover() {
   const supabase = createSupabaseBrowserClient();
@@ -47,7 +36,7 @@ function LoginCover() {
     });
   }
 
-  // 印刷语义错误批注：红墨 #a63a2f 仅用于错误/批改时刻
+  // 印刷语义：红墨仅用于错误/批改时刻
   return (
     <main className="min-h-screen bg-paper text-ink">
       <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
