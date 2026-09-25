@@ -1,21 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 
-export default function LoginPage() {
+// 印刷语义错误批注：红墨 #a63a2f 仅用于错误/批改时刻
+function ErrorAnnotation({ text }: { text: string }) {
+  return (
+    <p
+      role="alert"
+      className="-rotate-1 border-l-2 border-ink-red bg-ink-red/[0.04] px-3 py-2 text-sm leading-6 text-ink-red"
+    >
+      {text}
+    </p>
+  );
+}
+
+function LoginCover() {
   const supabase = createSupabaseBrowserClient();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [emailError, setEmailError] = useState(false);
+  const hasAuthError = searchParams.get("error") === "auth";
 
   async function sendMagicLink() {
-    await supabase.auth.signInWithOtp({
+    setEmailError(false);
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/auth/callback` },
     });
+    if (error) {
+      setEmailError(true);
+      return;
+    }
     setSent(true);
   }
 
@@ -26,6 +47,7 @@ export default function LoginPage() {
     });
   }
 
+  // 印刷语义错误批注：红墨 #a63a2f 仅用于错误/批改时刻
   return (
     <main className="min-h-screen bg-paper text-ink">
       <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
@@ -62,13 +84,14 @@ export default function LoginPage() {
               {COPY.login.formTitle}
             </h2>
             <p className="mt-1 text-sm text-pencil">{COPY.login.formHint}</p>
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              {hasAuthError && <ErrorAnnotation text={COPY.login.authError} />}
               {sent ? (
                 <p className="border border-ink/20 bg-ink/[0.03] px-4 py-6 text-sm leading-6">
                   {COPY.login.sent}
                 </p>
               ) : (
-                <div className="space-y-3">
+                <>
                   <div className="space-y-1.5">
                     <label
                       htmlFor="login-email"
@@ -84,26 +107,41 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="focus-visible:border-ink-blue focus-visible:ring-ink-blue/25"
                     />
+                    {emailError && (
+                      <ErrorAnnotation text={COPY.login.emailError} />
+                    )}
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => void sendMagicLink()}
+                    onClick={() => {
+                      void sendMagicLink().catch(() => setEmailError(true));
+                    }}
                   >
                     {COPY.login.magicLink}
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => void signInWithGitHub()}
+                    onClick={() => {
+                      void signInWithGitHub();
+                    }}
                   >
                     {COPY.login.github}
                   </Button>
-                </div>
+                </>
               )}
             </div>
           </div>
         </section>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-paper" />}>
+      <LoginCover />
+    </Suspense>
   );
 }

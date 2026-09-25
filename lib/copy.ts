@@ -15,5 +15,7 @@ export const COPY = {
     magicLink: "发送登录链接",
     github: "使用 GitHub 登录",
     sent: "登录链接已发送，请查收邮箱。",
+    emailError: "这行字有问题，换一个邮箱试试。",
+    authError: "登录没有完成，请回卷重试。",
   },
 } as const;
