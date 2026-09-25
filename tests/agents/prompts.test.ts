@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildQuestionSetterMessages } from "@/lib/agents/question-setter";
 import { buildEvaluatorMessages } from "@/lib/agents/evaluator";
 import { buildReportMessages } from "@/lib/agents/report-writer";
-import { buildInterviewerMessages } from "@/lib/agents/interviewer";
+import { buildInterviewerMessages, INTERVIEWER_PERSONA } from "@/lib/agents/interviewer";
 import { buildResumeAnalystMessages } from "@/lib/agents/resume-analyst";
 
 const profile = {
@@ -25,7 +25,8 @@ describe("buildQuestionSetterMessages", () => {
     expect(text).toContain("Go");
     expect(text).toContain("支付网关");
     expect(text).toContain("后端工程师");
-    expect(text).toContain("6");
+    const userContent = msgs.find((m) => m.role === "user")?.content ?? "";
+    expect(userContent).toMatch(/题目数量：6/);
   });
 });
 
@@ -42,6 +43,20 @@ describe("buildEvaluatorMessages", () => {
     expect(text).toContain("relevance");
     expect(text).toContain("深度");
     expect(text).toContain("限流");
+  });
+  it("transcript 角色标注：candidate 前缀候选人，interviewer 前缀面试官", () => {
+    const msgs = buildEvaluatorMessages({
+      question: { content: "讲讲高并发网关", type: "skill", skillTag: "Go", followupAnchor: "qps 估算" },
+      transcript: [
+        { role: "interviewer", content: "讲讲高并发网关" },
+        { role: "candidate", content: "我用了 Go + 限流" },
+        { role: "followup", content: "追问一句" },
+      ],
+    });
+    const userContent = msgs.find((m) => m.role === "user")?.content ?? "";
+    expect(userContent).toContain("面试官：讲讲高并发网关");
+    expect(userContent).toContain("候选人：我用了 Go + 限流");
+    expect(userContent).toContain("面试官：追问一句");
   });
 });
 
@@ -76,6 +91,24 @@ describe("buildInterviewerMessages", () => {
       followupText: "你提到技术选型，为什么选它？",
     });
     expect(JSON.stringify(msgs)).toContain("技术选型");
+  });
+  it("history 角色映射：candidate→user，interviewer/followup→assistant", () => {
+    const msgs = buildInterviewerMessages("followup", {
+      question: q,
+      history: [
+        { role: "interviewer", content: "介绍项目" },
+        { role: "candidate", content: "候选人回答" },
+        { role: "followup", content: "追问内容" },
+      ],
+      followupText: "再追问一句",
+    });
+    expect(msgs).toEqual([
+      { role: "system", content: INTERVIEWER_PERSONA },
+      { role: "assistant", content: "介绍项目" },
+      { role: "user", content: "候选人回答" },
+      { role: "assistant", content: "追问内容" },
+      { role: "user", content: expect.stringContaining("再追问一句") },
+    ]);
   });
   it("transition 模式包含下一题", () => {
     const next = { ...q, content: "下一题内容" };
