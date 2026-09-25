@@ -96,12 +96,18 @@ export async function getMaskedLlmSettings(userId: string) {
     console.error("[settings] load user_settings failed, treat as unconfigured:", error.message);
   }
   const hasKey = !!settings?.llm_api_key_enc;
+  // 解密失败（如 SETTINGS_SECRET 轮换）时 keyMask 返回空串：设置页据此显示「请重新填写」红墨批注
+  let keyMask = "";
+  if (settings?.llm_api_key_enc) {
+    const plaintext = safeDecrypt(settings.llm_api_key_enc);
+    if (plaintext !== undefined) keyMask = maskSecret(plaintext);
+  }
   return {
     hasUserConfig: !!settings,
     llmBaseUrl: settings?.llm_base_url ?? "",
     llmChatModel: settings?.llm_chat_model ?? "",
     llmEvalModel: settings?.llm_eval_model ?? "",
     hasKey,
-    keyMask: hasKey ? maskSecret(safeDecrypt(settings.llm_api_key_enc) ?? "") : "",
+    keyMask,
   };
 }
