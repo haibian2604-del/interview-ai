@@ -12,11 +12,12 @@ describe("QuestionSetSchema", () => {
     skillTag: "项目管理",
     followupAnchor: "技术选型理由",
   };
-  it("接受 3-10 题", () => {
+  it("接受 1-10 题（模型少给几题不该整体失败，question_count 按实际行数对账）", () => {
     expect(() => QuestionSetSchema.parse({ questions: [q, q, q] })).not.toThrow();
+    expect(() => QuestionSetSchema.parse({ questions: [q] })).not.toThrow();
   });
-  it("拒绝少于 3 题", () => {
-    expect(() => QuestionSetSchema.parse({ questions: [q] })).toThrow();
+  it("拒绝空题库", () => {
+    expect(() => QuestionSetSchema.parse({ questions: [] })).toThrow();
   });
   it("拒绝未知题型", () => {
     expect(() =>

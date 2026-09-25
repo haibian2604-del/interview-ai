@@ -93,8 +93,12 @@ export async function POST(request: Request) {
       .from("interviews")
       .update({ status: "draft" })
       .eq("id", interview.id);
+    // NoObjectGeneratedError 携带模型原始输出（.text），带上头部片段便于定位 schema 不匹配的根因
+    const raw = typeof (e as { text?: unknown })?.text === "string" ? (e as { text: string }).text : undefined;
+    if (raw) console.error("[interview/create] raw model output:\n", raw.slice(0, 4000));
+    const base = e instanceof Error ? e.message : "出题失败";
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "出题失败" },
+      { error: raw ? `${base}（模型输出头部：${raw.slice(0, 300)}…）` : base },
       { status: 502 },
     );
   }

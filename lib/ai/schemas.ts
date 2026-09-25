@@ -28,7 +28,7 @@ export const QuestionSchema = z.object({
 export type Question = z.infer<typeof QuestionSchema>;
 
 export const QuestionSetSchema = z.object({
-  questions: z.array(QuestionSchema).min(3).max(10),
+  questions: z.array(QuestionSchema).min(1).max(10),
 });
 
 const evalScores = z.object({
