@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { extractPdfText } from "@/lib/resume/pdf";
+import { COPY } from "@/lib/copy";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
-  const user = await requireUser();
+  // /api/* 不在 middleware 的 PROTECTED 名单内，这里自己兜住未登录
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return NextResponse.json({ error: COPY.api.unauthorized }, { status: 401 });
+  }
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {

@@ -58,4 +58,7 @@ export const COPY = {
     loadFailed: "档案索引没有取回，请刷新本页。",
     loading: "取卷中…",
   },
+  api: {
+    unauthorized: "未登录",
+  },
 } as const;
