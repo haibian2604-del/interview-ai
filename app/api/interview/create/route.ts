@@ -63,7 +63,14 @@ export async function POST(request: Request) {
       count: body.questionCount ?? 6,
     });
     await supabase.from("questions").insert(
-      questions.map((q, idx) => ({ interview_id: interview.id, idx, ...q })),
+      questions.map((q, idx) => ({
+        interview_id: interview.id,
+        idx,
+        content: q.content,
+        type: q.type,
+        skill_tag: q.skillTag,
+        followup_anchor: q.followupAnchor,
+      })),
     );
     await supabase
       .from("interviews")
