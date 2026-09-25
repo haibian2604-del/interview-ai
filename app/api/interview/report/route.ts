@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const report = await generateReport({
+  const report = await generateReport(user.id, {
     position: interview.position,
     questionContents: questions.map((q) => q.content),
     evaluations: aligned,

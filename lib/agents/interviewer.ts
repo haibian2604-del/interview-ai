@@ -1,5 +1,6 @@
 import { streamText } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { getLlmConfig } from "@/lib/settings/service";
 import type { Question } from "@/lib/ai/schemas";
 
 export const INTERVIEWER_PERSONA =
@@ -40,12 +41,13 @@ export function buildInterviewerMessages(
   return messages;
 }
 
-export function streamInterviewer(
+export async function streamInterviewer(
+  userId: string,
   mode: InterviewerMode,
   payload: Parameters<typeof buildInterviewerMessages>[1],
 ) {
   return streamText({
-    model: getModel("interviewer"),
+    model: getModel("interviewer", await getLlmConfig(userId)),
     messages: buildInterviewerMessages(mode, payload),
   });
 }

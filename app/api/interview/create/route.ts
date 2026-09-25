@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
   try {
     const profile = (resume.structured_json as ResumeProfile | null) ??
-      await analyzeResume(resume.raw_text);
+      await analyzeResume(user.id, resume.raw_text);
     // 副作用写入一律检查 error：失败走 catch 回滚 draft，避免静默产出打不开的卷
     const { error: profileWriteError } = await supabase
       .from("resumes")
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       .eq("id", resume.id);
     if (profileWriteError) throw new Error(profileWriteError.message);
 
-    const questions = await generateQuestions({
+    const questions = await generateQuestions(user.id, {
       profile,
       jdText: body.jdText ?? "",
       position: body.position,

@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { EvaluationSchema, type Evaluation, type Question } from "@/lib/ai/schemas";
 
@@ -26,12 +27,15 @@ export function buildEvaluatorMessages(input: {
   ];
 }
 
-export async function evaluateAnswer(input: {
-  question: Question;
-  transcript: { role: string; content: string }[];
-}): Promise<Evaluation> {
+export async function evaluateAnswer(
+  userId: string,
+  input: {
+    question: Question;
+    transcript: { role: string; content: string }[];
+  },
+): Promise<Evaluation> {
   const { object } = await generateObject({
-    model: getModel("evaluator"),
+    model: getModel("evaluator", await getLlmConfig(userId)),
     schema: EvaluationSchema,
     messages: buildEvaluatorMessages(input),
   });

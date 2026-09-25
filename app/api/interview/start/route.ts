@@ -88,9 +88,9 @@ export async function POST(request: Request) {
     }
   }
 
-  let result: ReturnType<typeof streamInterviewer>;
+  let result: Awaited<ReturnType<typeof streamInterviewer>>;
   try {
-    result = streamInterviewer("ask", {
+    result = await streamInterviewer(user.id, "ask", {
       question: rowToQuestion(question),
       history: [],
       followupText: null,

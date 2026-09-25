@@ -101,7 +101,7 @@ export async function POST(request: Request) {
   // 评估 Agent（独立人格，只看题目与回答原文）；DB 行先过 camelCase 映射铁律
   let evaluation: Evaluation;
   try {
-    evaluation = await evaluateAnswer({
+    evaluation = await evaluateAnswer(user.id, {
       question: rowToQuestion(question),
       transcript: [...agentHistory, { role: "candidate", content: answer }],
     });
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
   }
 
   // 组装面试官话术 payload（history 用 C2 归一后的角色：followup 轮回答也是候选人）
-  const payload: Parameters<typeof streamInterviewer>[1] = {
+  const payload: Parameters<typeof streamInterviewer>[2] = {
     question: rowToQuestion(question),
     history: [...agentHistory, { role: "candidate" as const, content: answer }],
     followupText: `针对回答的不足（${evaluation.improvements}），围绕追问锚点「${question.followup_anchor}」提出一个具体追问。`,
@@ -173,9 +173,10 @@ export async function POST(request: Request) {
     payload.nextQuestion = nextQuestion ? rowToQuestion(nextQuestion) : undefined;
   }
 
-  let result: ReturnType<typeof streamInterviewer>;
+  let result: Awaited<ReturnType<typeof streamInterviewer>>;
   try {
-    result = streamInterviewer(
+    result = await streamInterviewer(
+      user.id,
       next.action === "followup" ? "followup" : "transition",
       payload,
     );

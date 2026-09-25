@@ -1,36 +1,53 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it } from "vitest";
 
-describe("getModel / requireEnv", () => {
-  const ORIG = { ...process.env };
-  beforeEach(() => {
-    process.env.LLM_BASE_URL = "https://api.example.com/v1";
-    process.env.LLM_API_KEY = "sk-test";
-    process.env.LLM_CHAT_MODEL = "cheap-model";
-    process.env.LLM_EVAL_MODEL = "strong-model";
-  });
-  afterEach(() => { process.env = { ...ORIG }; });
+import type { LlmConfig } from "@/lib/settings/service";
+import type { getModel } from "@/lib/ai/provider";
 
-  it("廉价 Agent 使用 CHAT 模型", async () => {
+describe("getModel(kind, cfg) 路由", () => {
+  const cfg: LlmConfig = {
+    baseURL: "https://api.example.com/v1",
+    apiKey: "sk-test",
+    chatModel: "cheap-model",
+    evalModel: "strong-model",
+  };
+
+  async function modelIdOf(kind: Parameters<typeof getModel>[0], c: LlmConfig) {
     const { getModel } = await import("@/lib/ai/provider");
-    const m = getModel("interviewer") as unknown as { modelId: string };
-    expect(m.modelId).toBe("cheap-model");
+    return (getModel(kind, c) as unknown as { modelId: string }).modelId;
+  }
+
+  it("廉价 Agent（resume-analyst/question-setter/interviewer）使用 cfg.chatModel", async () => {
+    expect(await modelIdOf("resume-analyst", cfg)).toBe("cheap-model");
+    expect(await modelIdOf("question-setter", cfg)).toBe("cheap-model");
+    expect(await modelIdOf("interviewer", cfg)).toBe("cheap-model");
   });
 
-  it("评估/报告 Agent 使用 EVAL 模型", async () => {
+  it("评估/报告 Agent 使用 cfg.evalModel", async () => {
+    expect(await modelIdOf("evaluator", cfg)).toBe("strong-model");
+    expect(await modelIdOf("report-writer", cfg)).toBe("strong-model");
+  });
+
+  it("cfg.evalModel 未配置时评估/报告回落 cfg.chatModel", async () => {
+    const noEval = { ...cfg, evalModel: undefined };
+    expect(await modelIdOf("evaluator", noEval)).toBe("cheap-model");
+    expect(await modelIdOf("report-writer", noEval)).toBe("cheap-model");
+  });
+
+  it("provider 使用 cfg 的 baseURL 与 apiKey", async () => {
     const { getModel } = await import("@/lib/ai/provider");
-    const m = getModel("evaluator") as unknown as { modelId: string };
-    expect(m.modelId).toBe("strong-model");
+    const m = getModel("interviewer", cfg) as unknown as {
+      config: {
+        url: (args: { path: string }) => URL;
+        headers: () => Record<string, string>;
+      };
+    };
+    expect(m.config.url({ path: "/chat/completions" }).toString()).toMatch(
+      /^https:\/\/api\.example\.com\/v1\/chat\/completions/,
+    );
+    expect(m.config.headers()["authorization"]).toBe("Bearer sk-test");
   });
 
-  it("EVAL 未配置时回落 CHAT", async () => {
-    delete process.env.LLM_EVAL_MODEL;
-    const { getModel } = await import("@/lib/ai/provider");
-    const m = getModel("report-writer") as unknown as { modelId: string };
-    expect(m.modelId).toBe("cheap-model");
-  });
-
-  it("缺必需 env 时抛出带 key 名的错误", async () => {
-    delete process.env.LLM_API_KEY;
+  it("缺必需 env 时 requireEnv 抛出带 key 名的错误", async () => {
     const { requireEnv } = await import("@/lib/env");
     expect(() => requireEnv("LLM_API_KEY")).toThrow(/LLM_API_KEY/);
   });

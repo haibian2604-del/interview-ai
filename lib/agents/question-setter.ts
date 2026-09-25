@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { getLlmConfig } from "@/lib/settings/service";
 import { QuestionSetSchema, type Question, type ResumeProfile } from "@/lib/ai/schemas";
 
 const TYPE_HINT: Record<string, string> = {
@@ -37,15 +38,18 @@ ${input.jdText || "（未提供，按岗位常识出题）"}`,
   ];
 }
 
-export async function generateQuestions(input: {
-  profile: ResumeProfile;
-  jdText: string;
-  position: string;
-  interviewType: "skill" | "project" | "behavioral" | "mixed";
-  count: number;
-}): Promise<Question[]> {
+export async function generateQuestions(
+  userId: string,
+  input: {
+    profile: ResumeProfile;
+    jdText: string;
+    position: string;
+    interviewType: "skill" | "project" | "behavioral" | "mixed";
+    count: number;
+  },
+): Promise<Question[]> {
   const { object } = await generateObject({
-    model: getModel("question-setter"),
+    model: getModel("question-setter", await getLlmConfig(userId)),
     schema: QuestionSetSchema,
     messages: buildQuestionSetterMessages(input),
   });

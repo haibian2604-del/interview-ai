@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
+import { getLlmConfig } from "@/lib/settings/service";
 import { ResumeProfileSchema, type ResumeProfile } from "@/lib/ai/schemas";
 
 const PERSONA =
@@ -12,9 +13,9 @@ export function buildResumeAnalystMessages(rawText: string) {
   ];
 }
 
-export async function analyzeResume(rawText: string): Promise<ResumeProfile> {
+export async function analyzeResume(userId: string, rawText: string): Promise<ResumeProfile> {
   const { object } = await generateObject({
-    model: getModel("resume-analyst"),
+    model: getModel("resume-analyst", await getLlmConfig(userId)),
     schema: ResumeProfileSchema,
     messages: buildResumeAnalystMessages(rawText),
   });
