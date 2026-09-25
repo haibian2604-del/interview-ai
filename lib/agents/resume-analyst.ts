@@ -4,6 +4,7 @@ import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { ResumeProfileSchema, type ResumeProfile } from "@/lib/ai/schemas";
+import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
 
 const PERSONA =
   "你是资深 HR 顾问，擅长从简历原文中提取结构化职业画像。只依据原文提取，不编造。";
@@ -29,5 +30,5 @@ export async function analyzeResume(userId: string, rawText: string): Promise<Re
       messages,
     });
     return object;
-  });
+  }, { shapeHint: SCHEMA_SHAPE_HINTS.resumeProfile });
 }

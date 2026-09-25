@@ -20,6 +20,7 @@ const CORRECTIVE =
 export async function withSchemaRetry<T>(
   schema: z.ZodType<T>,
   run: (corrective?: string) => Promise<T>,
+  opts?: { shapeHint?: string },
 ): Promise<T> {
   try {
     return await run();
@@ -36,8 +37,12 @@ export async function withSchemaRetry<T>(
       }
     }
 
+    const corrective =
+      opts?.shapeHint === undefined
+        ? CORRECTIVE
+        : `${CORRECTIVE}\n目标结构示例（字段名逐字照抄，值仅示意）：\n${opts.shapeHint}`;
     try {
-      return await run(CORRECTIVE);
+      return await run(corrective);
     } catch (e2) {
       const text2 = (e2 as { text?: unknown })?.text;
       const candidate2 = typeof text2 === "string" ? extractJsonCandidate(text2) : undefined;

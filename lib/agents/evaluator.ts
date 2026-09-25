@@ -5,6 +5,7 @@ import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { EvaluationSchema, type Evaluation, type Question } from "@/lib/ai/schemas";
+import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
 
 const PERSONA =
   "你是一位以严格著称的面试评估官。独立评估候选人的回答，与面试官话术无关。避免普遍给高分：只有真正出色的回答才配高分。";
@@ -49,5 +50,5 @@ export async function evaluateAnswer(
       messages,
     });
     return object;
-  });
+  }, { shapeHint: SCHEMA_SHAPE_HINTS.evaluation });
 }

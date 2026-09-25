@@ -5,6 +5,7 @@ import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { DIMENSIONS, RUBRIC } from "@/lib/orchestrator/rubric";
 import { ReportSchema, type Evaluation, type Report } from "@/lib/ai/schemas";
+import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
 
 const PERSONA =
   "你是面试教练，基于逐题评估数据撰写综合报告：总分（0-100）、四维分、优势、改进建议（教练式、可执行）。";
@@ -48,5 +49,5 @@ export async function generateReport(
       messages,
     });
     return object;
-  });
+  }, { shapeHint: SCHEMA_SHAPE_HINTS.report });
 }

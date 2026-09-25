@@ -4,6 +4,7 @@ import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { getLlmConfig } from "@/lib/settings/service";
 import { QuestionSetSchema, type Question, type ResumeProfile } from "@/lib/ai/schemas";
+import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
 
 const TYPE_HINT: Record<string, string> = {
   skill: "考察技能栈掌握深度",
@@ -63,6 +64,6 @@ export async function generateQuestions(
       messages,
     });
     return object;
-  });
+  }, { shapeHint: SCHEMA_SHAPE_HINTS.questionSet });
   return result.questions;
 }
