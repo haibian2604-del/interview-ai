@@ -1,0 +1,19 @@
+export const COPY = {
+  login: {
+    title: "登录 · 面镜 Mirror",
+    brand: "面镜 Mirror",
+    tagline: "照镜子式演练：面试是自我认知的镜子。",
+    coverLabel: "考官评分簿 · 第 001 册",
+    coverUsageLabel: "演练",
+    coverUsageValue: "结构陪练 · 考官追问",
+    coverScoringLabel: "批改",
+    coverScoringValue: "四维评分 · 逐题批注",
+    formTitle: "登录",
+    formHint: "邮箱登录，无需密码。",
+    emailLabel: "邮箱",
+    emailPlaceholder: "输入邮箱",
+    magicLink: "发送登录链接",
+    github: "使用 GitHub 登录",
+    sent: "登录链接已发送，请查收邮箱。",
+  },
+} as const;
