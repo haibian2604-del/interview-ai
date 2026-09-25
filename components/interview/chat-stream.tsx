@@ -13,16 +13,6 @@ import type { ChatMessage, StampData } from "@/lib/interview/mappers";
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
 type DimensionKey = (typeof DIMENSION_KEYS)[number];
 
-// 分数框「盖章出现」：阻尼、物理化（缓入落章，无回弹）
-const STAMP_CSS = `
-@keyframes mirror-stamp-in {
-  0% { opacity: 0; transform: scale(1.6) rotate(-9deg); }
-  60% { opacity: 1; transform: scale(0.96) rotate(-1deg); }
-  100% { opacity: 1; transform: scale(1) rotate(-2deg); }
-}
-.mirror-stamp-in { animation: mirror-stamp-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
-`;
-
 type InterviewStatus =
   | "draft"
   | "generating"
@@ -428,8 +418,6 @@ export function ChatStream(props: ChatStreamProps) {
 
   return (
     <div className="flex min-h-0 w-full flex-1 gap-8">
-      <style>{STAMP_CSS}</style>
-
       {/* 左栏（桌面）：答题卡 + 放弃面试 */}
       <aside className="hidden w-64 shrink-0 flex-col gap-6 lg:flex">
         <QuestionProgress

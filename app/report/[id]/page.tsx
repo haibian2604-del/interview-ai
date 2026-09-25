@@ -7,16 +7,6 @@ import { COPY } from "@/lib/copy";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
 
-// 分数章「盖章出现」：与 chat-stream 的批改章同一套阻尼缓入（印入落定，无回弹）
-const STAMP_CSS = `
-@keyframes mirror-stamp-in {
-  0% { opacity: 0; transform: scale(1.6) rotate(-9deg); }
-  60% { opacity: 1; transform: scale(0.96) rotate(-1deg); }
-  100% { opacity: 1; transform: scale(1) rotate(-2deg); }
-}
-.mirror-stamp-in { animation: mirror-stamp-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
-`;
-
 type ReportView = {
   overallScore: number;
   dimensionScores: Record<DimensionKey, number>;
@@ -183,7 +173,6 @@ export default async function ReportPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
-      <style>{STAMP_CSS}</style>
       {header}
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-10 pb-16 pt-10">

@@ -135,3 +135,12 @@
     @apply font-sans;
   }
 }
+
+/* 印章「盖章出现」动效（全站权威定义）：阻尼缓入落章，无回弹。
+   印章元素引用 .mirror-stamp-in 即生效（批改分数章 / 总分章 / 目录状态章）。 */
+@keyframes mirror-stamp-in {
+  0% { opacity: 0; transform: scale(1.6) rotate(-9deg); }
+  60% { opacity: 1; transform: scale(0.96) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-2deg); }
+}
+.mirror-stamp-in { animation: mirror-stamp-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
