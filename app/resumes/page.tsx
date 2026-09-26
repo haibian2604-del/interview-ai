@@ -9,11 +9,13 @@ import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
+import { resumeProfilePreview } from "@/lib/resume/profile-preview";
 
 type ResumeRow = {
   id: string;
   created_at: string;
   storage_path: string | null;
+  structured_json: unknown;
 };
 
 // 归档日期：等宽表格数字，印刷品节奏
@@ -190,15 +192,15 @@ function ResumeCard({
   const supabase = createSupabaseBrowserClient();
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // B12：画像已结构化的档案展示摘要 + 考察点，未结构化的维持「画像待生成」占位
+  const profile = resumeProfilePreview(resume.structured_json);
 
-  // 销档：先清 Storage 原件（尽力而为），再销索引行
+  // 销档（B6）：先销索引行（ cascade 清面试记录），再尽力而为清 Storage 原件——
+  // 顺序反过来会在行删除失败时留下「指向已删原件」的孤儿行
   async function destroy() {
     if (!window.confirm(COPY.resumes.deleteConfirm)) return;
     setDeleting(true);
     try {
-      if (resume.storage_path) {
-        await supabase.storage.from("resumes").remove([resume.storage_path]);
-      }
       const { error } = await supabase
         .from("resumes")
         .delete()
@@ -206,6 +208,15 @@ function ResumeCard({
       if (error) {
         onError();
         return;
+      }
+      if (resume.storage_path) {
+        // Storage 清理失败仅记日志：行已销毁，残留原件不影响数据正确性
+        const { error: storageError } = await supabase.storage
+          .from("resumes")
+          .remove([resume.storage_path]);
+        if (storageError) {
+          console.error("[resumes] storage remove failed:", storageError.message);
+        }
       }
       onDeleted();
     } catch {
@@ -233,9 +244,33 @@ function ResumeCard({
           {COPY.resumes.profileLabel}
         </button>
         {expanded && (
-          <p className="mt-3 border-l-2 border-ink/20 pl-4 text-sm leading-6 text-pencil">
-            {COPY.resumes.profilePending}
-          </p>
+          profile ? (
+            <div className="mt-3 border-l-2 border-ink/20 pl-4">
+              <p className="text-sm leading-6 text-ink/80">
+                {profile.summary}
+                {profile.truncated ? "……" : ""}
+              </p>
+              {profile.skills.length > 0 && (
+                <ul
+                  aria-label={COPY.interview.skillTagLabel}
+                  className="mt-3 flex flex-wrap gap-1.5"
+                >
+                  {profile.skills.map((skill) => (
+                    <li
+                      key={skill}
+                      className="border border-ink/20 px-2 py-0.5 font-mono text-xs text-ink/70"
+                    >
+                      {skill}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 border-l-2 border-ink/20 pl-4 text-sm leading-6 text-pencil">
+              {COPY.resumes.profilePending}
+            </p>
+          )
         )}
       </div>
       <div className="flex justify-end border-t border-ink/15 px-5 py-3">
@@ -262,7 +297,7 @@ export default function ResumesPage() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("resumes")
-      .select("id, created_at, storage_path")
+      .select("id, created_at, storage_path, structured_json")
       .order("created_at", { ascending: true });
     if (error) {
       setListError(COPY.resumes.loadFailed);
@@ -277,7 +312,7 @@ export default function ResumesPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("resumes")
-        .select("id, created_at, storage_path")
+        .select("id, created_at, storage_path, structured_json")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) {
