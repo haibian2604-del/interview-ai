@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { getModel } from "@/lib/ai/provider";
 import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
+import { salvageQuestionSet } from "@/lib/ai/json-salvage";
 import { getLlmConfig } from "@/lib/settings/service";
 import { QuestionSetSchema, type Question, type ResumeProfile } from "@/lib/ai/schemas";
 import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
@@ -24,7 +25,8 @@ export function buildQuestionSetterMessages(input: {
     {
       role: "system" as const,
       content:
-        "你是严格的面试出题官。根据候选人画像和目标 JD 出题。每题必须给出 skillTag（考察点）和 followupAnchor（如果回答含糊，最值得追问的具体方向）。不要出与 JD 和简历无关的泛泛题。",
+        "你是严格的面试出题官。根据候选人画像和目标 JD 出题。每题必须给出 skillTag（考察点）和 followupAnchor（如果回答含糊，最值得追问的具体方向）。不要出与 JD 和简历无关的泛泛题。" +
+        "\n输出格式硬性要求：最外层是 {\"questions\":[...]}，questions 数组必须扁平——每个元素直接是一道题的对象，且只含 content、type、skillTag、followupAnchor 四个字段；数组元素内部绝不允许再出现 questions 键或任何其他嵌套包裹。",
     },
     {
       role: "user" as const,
@@ -67,6 +69,9 @@ export async function generateQuestions(
       messages,
     });
     return object;
-  }, { shapeHint: SCHEMA_SHAPE_HINTS.questionSet });
+  }, {
+    shapeHint: SCHEMA_SHAPE_HINTS.questionSet,
+    salvage: salvageQuestionSet,
+  });
   return result.questions;
 }

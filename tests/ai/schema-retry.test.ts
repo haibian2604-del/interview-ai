@@ -74,4 +74,58 @@ describe("withSchemaRetry", () => {
     ).rejects.toBe(boom);
     expect(calls).toBe(1);
   });
+
+  it("截断 JSON → 截断修复后直接命中，不重试", async () => {
+    let calls = 0;
+    const r = await withSchemaRetry(Schema, async () => {
+      calls++;
+      throw noObjectError('前缀 {"questions":[{"content":"讲讲项目"');
+    });
+    expect(calls).toBe(1);
+    expect(r.questions[0].content).toBe("讲讲项目");
+  });
+
+  it("嵌套病态结构 → salvage 拍平回收，不重试", async () => {
+    let calls = 0;
+    const r = await withSchemaRetry(
+      Schema,
+      async () => {
+        calls += 1;
+        throw noObjectError(JSON.stringify({
+          questions: [{ content: "题1" }, { questions: [{ content: "题2" }] }],
+        }));
+      },
+      { salvage: (raw) => {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        const found: { content: string }[] = [];
+        const walk = (v: unknown) => {
+          if (Array.isArray(v)) return v.forEach(walk);
+          if (v && typeof v === "object") {
+            const obj = v as Record<string, unknown>;
+            if (typeof obj.content === "string") found.push({ content: obj.content });
+            else Object.values(obj).forEach(walk);
+          }
+        };
+        walk(parsed);
+        return found.length > 0 ? { questions: found } : undefined;
+      } },
+    );
+    expect(calls).toBe(1);
+    expect(r.questions.map((q) => q.content)).toEqual(["题1", "题2"]);
+  });
+
+  it("修复与 salvage 都救不回 → 走纠错重试", async () => {
+    let calls = 0;
+    const r = await withSchemaRetry(
+      Schema,
+      async () => {
+        calls++;
+        if (calls === 1) throw noObjectError('{"完全不":"相干"}');
+        return { questions: [{ content: "q" }] };
+      },
+      { salvage: () => undefined },
+    );
+    expect(calls).toBe(2);
+    expect(r.questions[0].content).toBe("q");
+  });
 });
