@@ -23,11 +23,11 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as { interviewId?: string; answer?: string };
   } catch {
-    return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    return NextResponse.json({ error: COPY.api.invalidJson }, { status: 400 });
   }
   const { interviewId, answer } = body;
   if (!interviewId || typeof answer !== "string" || !answer.trim()) {
-    return NextResponse.json({ error: "缺少 interviewId 或 answer" }, { status: 400 });
+    return NextResponse.json({ error: COPY.api.missingInterviewIdOrAnswer }, { status: 400 });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     );
   }
   if (!question) {
-    return NextResponse.json({ error: "题目不存在" }, { status: 404 });
+    return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
   }
 
   // C1：按「本题」计追问轮（状态机契约），不能用全场 followup 行数
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     .single();
   if (candidateInsertError || !insertedMessage) {
     return NextResponse.json(
-      { error: candidateInsertError?.message ?? "作答落盘失败" },
+      { error: candidateInsertError?.message ?? COPY.api.answerPersistFailed },
       { status: 500 },
     );
   }
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       console.error("[interview/answer] rollback candidate message failed:", rollbackError.message);
     }
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "评估失败" },
+      { error: e instanceof Error ? e.message : COPY.api.evaluateFailed },
       { status: 502 },
     );
   }

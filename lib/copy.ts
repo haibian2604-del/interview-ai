@@ -1,6 +1,8 @@
 export const COPY = {
   common: {
     back: "返回",
+    /** 卷宗编号展示：interview / report 两页卷首共用（{no} 为卷 id 前 8 位） */
+    volumeNo: "卷号 {no}",
   },
   login: {
     title: "登录 · 面镜 Mirror",
@@ -138,7 +140,6 @@ export const COPY = {
     unauthorized: "未登录，请回登录页重新登记。",
   },
   interview: {
-    title: "面试现场 · 面镜 Mirror",
     headerLabel: "现场作答 · 考官评分簿",
     abandonButton: "放弃面试",
     abandonConfirm: "确认缺考离场？本场面试将盖上「缺考」章，无法继续作答。",
@@ -153,6 +154,13 @@ export const COPY = {
     stampStarLabel: "STAR 完整度",
     progressTitle: "答题卡",
     questionLabelPrefix: "第",
+    questionLabelSuffix: "题",
+    questionStateAnswered: "已答",
+    questionStateCurrent: "作答中",
+    questionStatePending: "未答",
+    followupBadgeAria: "本题为追问轮",
+    followupBadgeMark: "追",
+    shortcutHint: "Enter 发送 · Shift+Enter 换行",
     skillTagLabel: "考察点",
     gradingDoneTitle: "阅卷完成",
     gradingDoneHint: "本场作答已全部收录评分簿，正在合卷生成报告。",
@@ -188,7 +196,6 @@ export const COPY = {
     unauthorized: "未登录，请回登录页重新查看。",
     overallLabel: "总分",
     fullMarkLabel: "/ 100",
-    radarTitle: "四维雷达",
     radarHint: "每维先看与目标的差距，再看分值。",
     gapPrefix: "距目标",
     gapUnit: "分",
@@ -223,6 +230,7 @@ export const COPY = {
     apiKeyLabel: "API Key",
     apiKeyPlaceholder: "粘贴你的 API Key",
     apiKeyPlaceholderMasked: "已配置（{mask}），留空保持不变",
+    apiKeyPlaceholderUndecryptable: "已存密钥无法解密，请重新填写",
     apiKeyHint: "仅服务端可见：加密后入库，页面只回显掩码",
     chatModelLabel: "对话模型",
     chatModelPlaceholder: "如 gpt-4o-mini",
@@ -241,6 +249,7 @@ export const COPY = {
     testOkTemplate: "连接成功 · 模型 {model}",
     testFailedPrefix: "连接失败：",
     testBroken: "测试请求没有送达，请检查网络后重试。",
+    okMark: "✓",
     errInvalidBody: "请求格式有误，请刷新本页重试。",
     errInvalidType: "提交的字段应为文本。",
     errBaseUrlFormat: "Base URL 需以 http:// 或 https:// 开头，且可被解析。",
@@ -248,7 +257,22 @@ export const COPY = {
     errApiKeyLength: "API Key 长度需在 8-500 字符之间。",
     errModelTooLong: "模型名过长（上限 200 字符）。",
   },
+  /** API 路由响应体错误文案的唯一来源：路由层不写中文硬编码 */
   api: {
     unauthorized: "未登录",
+    invalidJson: "请求体不是合法 JSON",
+    missingInterviewIdOrAnswer: "缺少 interviewId 或 answer",
+    missingInterviewId: "缺少 interviewId",
+    questionNotFound: "题目不存在",
+    resumeNotFound: "简历不存在",
+    questionSetFailed: "出题失败",
+    interviewNotFound: "面试不存在",
+    unevaluatedQuestions: "存在未评估的题目，面试尚未完成",
+    alreadyCompleted: "面试已完成，不能缺考",
+    answerPersistFailed: "作答落盘失败",
+    evaluateFailed: "评估失败",
+    missingFileField: "缺少 file 字段",
+    pdfOnly: "仅支持 PDF",
+    pdfTextTooShort: "PDF 文本过少，可能是扫描件",
   },
 } as const;

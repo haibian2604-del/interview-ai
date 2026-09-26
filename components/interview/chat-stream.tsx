@@ -525,7 +525,7 @@ export function ChatStream(props: ChatStreamProps) {
             className="min-h-28 rounded-none border-ink/20 text-[15px] leading-7 focus-visible:border-ink-blue focus-visible:ring-ink-blue/20"
           />
           <div className="mt-3 flex items-center justify-between">
-            <p className="font-mono text-xs text-pencil">Enter 发送 · Shift+Enter 换行</p>
+            <p className="font-mono text-xs text-pencil">{copy.shortcutHint}</p>
             <Button
               type="button"
               className="rounded-none"

@@ -59,8 +59,8 @@ export function QuestionProgress({
             return (
               <li key={i}>
                 <span
-                  aria-label={`第 ${i + 1} 题${
-                    done ? " 已答" : current ? " 作答中" : " 未答"
+                  aria-label={`${copy.questionLabelPrefix} ${i + 1} ${copy.questionLabelSuffix}${
+                    done ? ` ${copy.questionStateAnswered}` : current ? ` ${copy.questionStateCurrent}` : ` ${copy.questionStatePending}`
                   }`}
                   className={cn(
                     "relative flex size-8 items-center justify-center border font-mono text-[11px] tabular-nums",
@@ -73,10 +73,10 @@ export function QuestionProgress({
                   {String(i + 1).padStart(2, "0")}
                   {followupSet.has(i) && (
                     <span
-                      aria-label="本题为追问轮"
+                      aria-label={copy.followupBadgeAria}
                       className="absolute -right-2 -top-2 font-mono text-[9px] leading-none text-ink-blue"
                     >
-                      追
+                      {copy.followupBadgeMark}
                     </span>
                   )}
                 </span>

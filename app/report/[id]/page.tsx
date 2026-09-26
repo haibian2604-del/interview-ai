@@ -81,7 +81,7 @@ export default async function ReportPage({
           {interview.position}
         </h1>
         <p className="ml-auto font-mono text-xs tabular-nums text-pencil">
-          卷号 {interview.id.slice(0, 8)}
+          {COPY.common.volumeNo.replace("{no}", interview.id.slice(0, 8))}
         </p>
       </div>
     </header>

@@ -29,7 +29,7 @@ export async function POST(
   }
   if (interview.status === "completed") {
     return NextResponse.json(
-      { error: "面试已完成，不能缺考" },
+      { error: COPY.api.alreadyCompleted },
       { status: 409 },
     );
   }

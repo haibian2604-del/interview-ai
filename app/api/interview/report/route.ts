@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .single();
-  if (!interview) return NextResponse.json({ error: "面试不存在" }, { status: 404 });
+  if (!interview) return NextResponse.json({ error: COPY.api.interviewNotFound }, { status: 404 });
 
   // 幂等：已有报告直接返回
   const { data: existing } = await supabase
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   // 零题（draft/generating 面试）不进报告生成：PostgREST 空 in() 列表会 400，
   // 且没有题目的面试永远谈不上「阅卷完成」，语义同未完成 → 409
   if (!questions || questions.length === 0) {
-    return NextResponse.json({ error: "存在未评估的题目，面试尚未完成" }, { status: 409 });
+    return NextResponse.json({ error: COPY.api.unevaluatedQuestions }, { status: 409 });
   }
   const qIds = questions.map((q) => q.id);
   const { data: evalRows } = await supabase
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const aligned: Evaluation[] = [];
   for (const q of questions) {
     const e = byQuestion.get(q.id);
-    if (!e) return NextResponse.json({ error: "存在未评估的题目，面试尚未完成" }, { status: 409 });
+    if (!e) return NextResponse.json({ error: COPY.api.unevaluatedQuestions }, { status: 409 });
     aligned.push({
       scores: e.scores as Evaluation["scores"],
       starCompleteness: Number(e.star_completeness),

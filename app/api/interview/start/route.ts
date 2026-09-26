@@ -19,11 +19,11 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as { interviewId?: string };
   } catch {
-    return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+    return NextResponse.json({ error: COPY.api.invalidJson }, { status: 400 });
   }
   const { interviewId } = body;
   if (!interviewId) {
-    return NextResponse.json({ error: "缺少 interviewId" }, { status: 400 });
+    return NextResponse.json({ error: COPY.api.missingInterviewId }, { status: 400 });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: questionError.message }, { status: 500 });
   }
   if (!question) {
-    return NextResponse.json({ error: "题目不存在" }, { status: 404 });
+    return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
   }
 
   if (interview.status === "ready") {

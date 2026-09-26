@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     .eq("id", body.resumeId)
     .eq("user_id", user.id)
     .single();
-  if (!resume) return NextResponse.json({ error: "简历不存在" }, { status: 404 });
+  if (!resume) return NextResponse.json({ error: COPY.api.resumeNotFound }, { status: 404 });
 
   const { data: interview, error } = await supabase
     .from("interviews")
@@ -96,7 +96,8 @@ export async function POST(request: Request) {
     // NoObjectGeneratedError 携带模型原始输出（.text），带上头部片段便于定位 schema 不匹配的根因
     const raw = typeof (e as { text?: unknown })?.text === "string" ? (e as { text: string }).text : undefined;
     if (raw) console.error("[interview/create] raw model output:\n", raw.slice(0, 4000));
-    const base = e instanceof Error ? e.message : "出题失败";
+    // 诊断拼接逻辑保留：base 文案来自 COPY.api，模型原始输出头部仅用于定位 schema 不匹配
+    const base = e instanceof Error ? e.message : COPY.api.questionSetFailed;
     return NextResponse.json(
       { error: raw ? `${base}（模型输出头部：${raw.slice(0, 300)}…）` : base },
       { status: 502 },
