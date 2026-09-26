@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export async function POST(
   _request: Request,
@@ -22,8 +23,7 @@ export async function POST(
     .eq("user_id", user.id)
     .maybeSingle();
   if (interviewError) {
-    console.error("[interview/abandon] load interview failed:", interviewError.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/abandon] load interview failed:", interviewError.message, 500);
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });
@@ -40,8 +40,7 @@ export async function POST(
     .update({ status: "abandoned" })
     .eq("id", id);
   if (error) {
-    console.error("[interview/abandon] mark abandoned failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/abandon] mark abandoned failed:", error.message, 500);
   }
   return NextResponse.json({ ok: true });
 }

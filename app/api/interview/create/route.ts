@@ -5,6 +5,7 @@ import { generateQuestions } from "@/lib/agents/question-setter";
 import type { ResumeProfile } from "@/lib/ai/schemas";
 import { clampQuestionCount } from "@/lib/interview/count";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export const maxDuration = 120;
 
@@ -55,8 +56,7 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error) {
-    console.error("[interview/create] insert interview failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/create] insert interview failed:", error.message, 500);
   }
 
   try {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export async function GET(
   _request: Request,
@@ -22,8 +23,7 @@ export async function GET(
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) {
-    console.error("[interview/status] load interview failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/status] load interview failed:", error.message, 500);
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });

@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { COPY } from "@/lib/copy";
 
+type PutResult = { ok: true; payload: MaskedLlmSettings } | { ok: false; error: string };
+
 /** 形状与 lib/settings/service.ts getMaskedLlmSettings 返回值一致（仅掩码，无任何 key 形态） */
 export type MaskedLlmSettings = {
   hasUserConfig: boolean;
@@ -78,57 +80,9 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
 
   const busy = saving || testing;
 
-  /** D5：清除已存密钥——PUT 传空串（API 空串语义 = 清除，回落系统默认 env） */
-  async function clearKey() {
-    if (busy || !hasKey) return;
-    if (!window.confirm(copy.clearKeyConfirm)) return;
-    setSaving(true);
-    setSaveError(null);
-    setSaveNotice(null);
+  /** PUT /api/settings 的共用骨架：401/业务错误归因、成功返回最新掩码形态 */
+  async function putSettings(body: Record<string, string>): Promise<PutResult> {
     try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ llmApiKey: "" }),
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | (MaskedLlmSettings & { error?: string })
-        | { error: string }
-        | null;
-      if (!res.ok) {
-        if (res.status === 401) {
-          setSaveError(COPY.api.unauthorized);
-          return;
-        }
-        setSaveError(payload && "error" in payload && payload.error ? payload.error : copy.saveFailed);
-        return;
-      }
-      if (payload && "hasKey" in payload) {
-        setHasKey(payload.hasKey);
-        setKeyMask(payload.keyMask);
-      }
-      setApiKey("");
-      setSaveNotice(copy.saveSuccess);
-    } catch {
-      setSaveError(copy.saveFailed);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function save() {
-    if (busy) return;
-    setSaving(true);
-    setSaveError(null);
-    setSaveNotice(null);
-    try {
-      const body: Record<string, string> = {
-        llmBaseUrl: baseUrl.trim(),
-        llmChatModel: chatModel.trim(),
-        llmEvalModel: evalModel.trim(),
-      };
-      const key = apiKey.trim();
-      if (key !== "") body.llmApiKey = key; // 未输入 key 时 PUT 不带该字段：保持现有
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -139,28 +93,60 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         | { error: string }
         | null;
       if (!res.ok) {
-        if (res.status === 401) {
-          setSaveError(COPY.api.unauthorized);
-          return;
-        }
-        setSaveError(payload && "error" in payload && payload.error ? payload.error : copy.saveFailed);
-        return;
+        if (res.status === 401) return { ok: false, error: COPY.api.unauthorized };
+        return { ok: false, error: (payload && "error" in payload && payload.error) || copy.saveFailed };
       }
-      if (payload && "hasKey" in payload) {
-        // PUT 成功响应即最新掩码形态：就地刷新，不落任何 key 形态
-        setBaseUrl(payload.llmBaseUrl);
-        setChatModel(payload.llmChatModel);
-        setEvalModel(payload.llmEvalModel);
-        setHasKey(payload.hasKey);
-        setKeyMask(payload.keyMask);
-      }
+      if (payload && "hasKey" in payload) return { ok: true, payload };
+      return { ok: false, error: copy.saveFailed };
+    } catch {
+      return { ok: false, error: copy.saveFailed };
+    }
+  }
+
+  /** D5：清除已存密钥——PUT 传空串（API 空串语义 = 清除，回落系统默认 env） */
+  async function clearKey() {
+    if (busy || !hasKey) return;
+    if (!window.confirm(copy.clearKeyConfirm)) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveNotice(null);
+    const result = await putSettings({ llmApiKey: "" });
+    if (result.ok) {
+      setHasKey(result.payload.hasKey);
+      setKeyMask(result.payload.keyMask);
+      setSaveNotice(copy.saveSuccess);
+    } else {
+      setSaveError(result.error);
+    }
+    setSaving(false);
+  }
+
+  async function save() {
+    if (busy) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveNotice(null);
+    const body: Record<string, string> = {
+      llmBaseUrl: baseUrl.trim(),
+      llmChatModel: chatModel.trim(),
+      llmEvalModel: evalModel.trim(),
+    };
+    const key = apiKey.trim();
+    if (key !== "") body.llmApiKey = key; // 未输入 key 时 PUT 不带该字段：保持现有
+    const result = await putSettings(body);
+    if (result.ok) {
+      // PUT 成功响应即最新掩码形态：就地刷新，不落任何 key 形态
+      setBaseUrl(result.payload.llmBaseUrl);
+      setChatModel(result.payload.llmChatModel);
+      setEvalModel(result.payload.llmEvalModel);
+      setHasKey(result.payload.hasKey);
+      setKeyMask(result.payload.keyMask);
       setApiKey("");
       setSaveNotice(copy.saveSuccess);
-    } catch {
-      setSaveError(copy.saveFailed);
-    } finally {
-      setSaving(false);
+    } else {
+      setSaveError(result.error);
     }
+    setSaving(false);
   }
 
   async function testConnection() {

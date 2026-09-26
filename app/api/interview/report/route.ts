@@ -3,6 +3,7 @@ import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { generateReport } from "@/lib/agents/report-writer";
 import type { Evaluation } from "@/lib/ai/schemas";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export const maxDuration = 120;
 
@@ -73,11 +74,7 @@ export async function POST(request: Request) {
       evaluations: aligned,
     });
   } catch (e) {
-    console.error(
-      "[interview/report] generateReport failed:",
-      e instanceof Error ? e.message : String(e),
-    );
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
+    return serverErrorResponse("[interview/report]", e, 502);
   }
 
   const { data: inserted, error } = await supabase
@@ -98,8 +95,7 @@ export async function POST(request: Request) {
         .from("reports").select("id").eq("interview_id", interviewId).maybeSingle();
       if (existing) return NextResponse.json({ reportId: existing.id });
     }
-    console.error("[interview/report] insert report failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/report] insert report failed:", error.message, 500);
   }
   return NextResponse.json({ reportId: inserted.id });
 }

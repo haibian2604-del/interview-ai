@@ -4,6 +4,7 @@ import { streamInterviewer } from "@/lib/agents/interviewer";
 import { rowToQuestion } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export const maxDuration = 300;
 
@@ -35,8 +36,7 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (interviewError) {
-    console.error("[interview/start] load interview failed:", interviewError.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/start] load interview failed:", interviewError.message, 500);
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });
@@ -53,8 +53,7 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
     if (firstMessageError) {
-      console.error("[interview/start] load first message failed:", firstMessageError.message);
-      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+      return serverErrorResponse("[interview/start] load first message failed:", firstMessageError.message, 500);
     }
     if (firstMessage) {
       return NextResponse.json({
@@ -74,8 +73,7 @@ export async function POST(request: Request) {
     .eq("idx", interview.current_question_index)
     .maybeSingle();
   if (questionError) {
-    console.error("[interview/start] load question failed:", questionError.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/start] load question failed:", questionError.message, 500);
   }
   if (!question) {
     return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
@@ -90,8 +88,7 @@ export async function POST(request: Request) {
       .eq("id", interviewId)
       .eq("status", "ready");
     if (updateError) {
-      console.error("[interview/start] mark in_progress failed:", updateError.message);
-      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+      return serverErrorResponse("[interview/start] mark in_progress failed:", updateError.message, 500);
     }
   }
 
@@ -103,11 +100,7 @@ export async function POST(request: Request) {
       followupText: null,
     });
   } catch (e) {
-    console.error(
-      "[interview/start] streamInterviewer failed:",
-      e instanceof Error ? e.message : String(e),
-    );
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
+    return serverErrorResponse("[interview/start]", e, 502);
   }
 
   // 旁路累积全文，流结束后落盘面试官消息

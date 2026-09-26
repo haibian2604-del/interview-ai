@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { extractPdfText } from "@/lib/resume/pdf";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 export const maxDuration = 60;
 
@@ -32,11 +33,7 @@ export async function POST(request: Request) {
     rawText = await extractPdfText(buffer);
   } catch (e) {
     // 坏损 PDF：原始解析错误只进日志，客户端拿通用文案
-    console.error(
-      "[resume/parse] extractPdfText failed:",
-      e instanceof Error ? e.message : String(e),
-    );
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[resume/parse]", e, 500);
   }
   if (rawText.length < 50) {
     return NextResponse.json({ error: COPY.api.pdfTextTooShort }, { status: 422 });
@@ -48,8 +45,7 @@ export async function POST(request: Request) {
     .from("resumes")
     .upload(path, buffer, { contentType: "application/pdf" });
   if (uploadError) {
-    console.error("[resume/parse] storage upload failed:", uploadError.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[resume/parse] storage upload failed:", uploadError.message, 500);
   }
   const { data, error } = await supabase
     .from("resumes")
@@ -57,8 +53,7 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error) {
-    console.error("[resume/parse] insert resume failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[resume/parse] insert resume failed:", error.message, 500);
   }
   return NextResponse.json({ resumeId: data.id, rawText });
 }

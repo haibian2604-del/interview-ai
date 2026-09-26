@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { COPY } from "@/lib/copy";
+import { serverErrorResponse } from "@/lib/api/server-error";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -27,8 +28,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
   const { error } = await supabase.from("interviews").delete().eq("id", id).eq("user_id", user.id);
   if (error) {
-    console.error("[interview/delete] delete interview failed:", error.message);
-    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    return serverErrorResponse("[interview/delete] delete interview failed:", error.message, 500);
   }
   return NextResponse.json({ ok: true });
 }

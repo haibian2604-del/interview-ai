@@ -8,9 +8,6 @@ export type ResumeProfilePreview = {
   skills: string[];
 };
 
-export const PROFILE_SUMMARY_MAX_CHARS = 80;
-export const PROFILE_SKILLS_LIMIT = 6;
-
 /** 从未知形状的 structured_json 里防御性取画像视图：形状不符（含数组/null）一律视为未生成 */
 export function resumeProfilePreview(structuredJson: unknown): ResumeProfilePreview | null {
   if (structuredJson === null || typeof structuredJson !== "object" || Array.isArray(structuredJson)) {
@@ -22,8 +19,8 @@ export function resumeProfilePreview(structuredJson: unknown): ResumeProfilePrev
   }
   const skills = candidate.skills.filter((s): s is string => typeof s === "string");
   return {
-    summary: candidate.summary.slice(0, PROFILE_SUMMARY_MAX_CHARS),
-    truncated: candidate.summary.length > PROFILE_SUMMARY_MAX_CHARS,
-    skills: skills.slice(0, PROFILE_SKILLS_LIMIT),
+    summary: candidate.summary.slice(0, 80),
+    truncated: candidate.summary.length > 80,
+    skills: skills.slice(0, 6),
   };
 }
