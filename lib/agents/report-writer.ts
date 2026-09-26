@@ -44,8 +44,9 @@ export async function generateReport(
     );
     const { object } = await generateObject({
       model: getModel("report-writer", cfg),
-      // 模型/网关默认输出上限可能截断长 JSON（实测画像被掐断），显式给足
-      maxOutputTokens: 8000,
+      // 模型/网关默认输出上限可能截断长 JSON（实测画像被掐断），显式给足；
+      // 4096 为几乎所有模型的输出上限下限——更大值会被部分网关直接 400 拒绝
+      maxOutputTokens: 4096,
       schema: ReportSchema,
       instructions,
       messages,
