@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
+import { safeNextPath } from "@/lib/navigation/next-path";
 import { COPY } from "@/lib/copy";
 
 function LoginCover() {
@@ -14,13 +15,19 @@ function LoginCover() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [emailError, setEmailError] = useState(false);
+  const [oauthError, setOauthError] = useState(false);
   const hasAuthError = searchParams.get("error") === "auth";
+  // B9：登录后回跳来源页——next 校验后拼进两条登录流的回调地址
+  const next = safeNextPath(searchParams.get("next"));
+  const callbackUrl = next
+    ? `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+    : `${location.origin}/auth/callback`;
 
   async function sendMagicLink() {
     setEmailError(false);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      options: { emailRedirectTo: callbackUrl },
     });
     if (error) {
       setEmailError(true);
@@ -30,10 +37,17 @@ function LoginCover() {
   }
 
   async function signInWithGitHub() {
-    await supabase.auth.signInWithOAuth({
-      provider: "github",
-      options: { redirectTo: `${location.origin}/auth/callback` },
-    });
+    setOauthError(false);
+    try {
+      // B10：OAuth 发起失败（弹窗被拦 / 网络断 / provider 报错）不再静默，落错误批注
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: { redirectTo: callbackUrl },
+      });
+      if (error) setOauthError(true);
+    } catch {
+      setOauthError(true);
+    }
   }
 
   // 印刷语义：红墨仅用于错误/批改时刻
@@ -74,8 +88,11 @@ function LoginCover() {
             </h2>
             <p className="mt-1 text-sm text-pencil">{COPY.login.formHint}</p>
             <div className="mt-6 space-y-3">
-              {hasAuthError && <ErrorAnnotation text={COPY.login.authError} />}
-              {sent ? (
+              {(hasAuthError || oauthError) && (
+                <ErrorAnnotation text={COPY.login.authError} />
+              )}
+              {/* D4：有错误批注时不同屏展示「已发送」提示，避免两态同屏打架 */}
+              {sent && !hasAuthError && !oauthError ? (
                 <p className="border border-ink/20 bg-ink/[0.03] px-4 py-6 text-sm leading-6">
                   {COPY.login.sent}
                 </p>

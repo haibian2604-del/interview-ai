@@ -24,8 +24,13 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
   const isLoggedIn = !!data.user;
-  if (!isLoggedIn && PROTECTED.some((p) => path.startsWith(p))) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // B8：按段匹配——/report-xxx 这类同前缀的公开路径不再被误保护
+  const isProtected = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
+  if (!isLoggedIn && isProtected) {
+    // B9：登录后回跳来源页——带 ?next= 原路径，由 /auth/callback 与登录页消费
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", path);
+    return NextResponse.redirect(login);
   }
   if (isLoggedIn && path === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
