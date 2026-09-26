@@ -25,6 +25,8 @@ export async function analyzeResume(userId: string, rawText: string): Promise<Re
     );
     const { object } = await generateObject({
       model: getModel("resume-analyst", cfg),
+      // 模型/网关默认输出上限可能截断长 JSON（实测画像被掐断），显式给足
+      maxOutputTokens: 8000,
       schema: ResumeProfileSchema,
       instructions,
       messages,

@@ -49,6 +49,7 @@ export async function streamInterviewer(
 ) {
   return streamText({
     model: getModel("interviewer", await getLlmConfig(userId)),
+    maxOutputTokens: 4000,
     ...splitInstructions(buildInterviewerMessages(mode, payload)),
   });
 }
