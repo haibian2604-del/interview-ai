@@ -19,6 +19,9 @@ describe("QuestionSetSchema", () => {
   it("拒绝空题库", () => {
     expect(() => QuestionSetSchema.parse({ questions: [] })).toThrow();
   });
+  it("拒绝 11 题（上限 10）", () => {
+    expect(() => QuestionSetSchema.parse({ questions: Array.from({ length: 11 }, () => q) })).toThrow();
+  });
   it("拒绝未知题型", () => {
     expect(() =>
       QuestionSetSchema.parse({
@@ -60,5 +63,19 @@ describe("ReportSchema", () => {
   it("overallScore 与维度分必须在 0-100", () => {
     expect(() => ReportSchema.parse({ ...base, overallScore: 82 })).not.toThrow();
     expect(() => ReportSchema.parse({ ...base, overallScore: 120 })).toThrow();
+  });
+  it("dimensionScores 越界（如 120）被拒", () => {
+    expect(() =>
+      ReportSchema.parse({
+        ...base,
+        dimensionScores: { ...base.dimensionScores, relevance: 120 },
+      }),
+    ).toThrow();
+    expect(() =>
+      ReportSchema.parse({
+        ...base,
+        dimensionScores: { ...base.dimensionScores, depth: -5 },
+      }),
+    ).toThrow();
   });
 });

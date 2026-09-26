@@ -16,6 +16,9 @@ export function encryptSecret(plaintext: string): string {
 export function decryptSecret(encoded: string): string {
   const [version, ivB64, tagB64, dataB64] = encoded.split(":");
   if (version !== "v1") throw new Error("unsupported secret version");
+  // v1 前缀后缺段/空段（如 "v1:"、"v1:aaaa"）是格式错误而非解密错误：
+  // 统一抛 unsupported secret format，避免落进 Buffer/decipher 的 TypeError
+  if (!ivB64 || !tagB64 || !dataB64) throw new Error("unsupported secret format");
   const decipher = createDecipheriv("aes-256-gcm", key(), Buffer.from(ivB64, "base64"));
   decipher.setAuthTag(Buffer.from(tagB64, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]).toString("utf8");

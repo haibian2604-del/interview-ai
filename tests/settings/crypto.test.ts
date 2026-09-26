@@ -58,6 +58,14 @@ describe("settings/crypto", () => {
     expect(() => decryptSecret("plaintext-key")).toThrow(/unsupported secret version/);
   });
 
+  it("v1 前缀后缺段/空段：抛统一的 unsupported secret format 而非 TypeError", async () => {
+    const { decryptSecret } = await import("@/lib/settings/crypto");
+    const malformed = ["v1:", "v1:aaaa", "v1:aaaa:", "v1:aaaa:bbbb", "v1::::", "v1:::data"];
+    for (const bad of malformed) {
+      expect(() => decryptSecret(bad), `input: ${bad}`).toThrow(/unsupported secret format/);
+    }
+  });
+
   it("缺 SETTINGS_SECRET 时加密抛出带 key 名的错误", async () => {
     vi.stubEnv("SETTINGS_SECRET", "");
     const { encryptSecret } = await import("@/lib/settings/crypto");
