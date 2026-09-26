@@ -479,7 +479,8 @@ export function ChatStream(props: ChatStreamProps) {
         )}
         {isAbandoned && (
           <div className="mt-6 flex items-center gap-4 border border-ink/20 px-5 py-4">
-            <span className="-rotate-3 border-2 border-pencil px-3 py-1 font-heading text-lg font-semibold tracking-[0.3em] text-pencil">
+            {/* 灰章文字用 ink-stamp（D3）：pencil 对比度不足 4.5:1，加深一档 */}
+            <span className="-rotate-3 border-2 border-ink-stamp px-3 py-1 font-heading text-lg font-semibold tracking-[0.3em] text-ink-stamp">
               {copy.abandonedStamp}
             </span>
             <p className="text-sm leading-6 text-ink/60">{copy.abandonedHint}</p>

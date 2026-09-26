@@ -78,6 +78,44 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
 
   const busy = saving || testing;
 
+  /** D5：清除已存密钥——PUT 传空串（API 空串语义 = 清除，回落系统默认 env） */
+  async function clearKey() {
+    if (busy || !hasKey) return;
+    if (!window.confirm(copy.clearKeyConfirm)) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveNotice(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ llmApiKey: "" }),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | (MaskedLlmSettings & { error?: string })
+        | { error: string }
+        | null;
+      if (!res.ok) {
+        if (res.status === 401) {
+          setSaveError(COPY.api.unauthorized);
+          return;
+        }
+        setSaveError(payload && "error" in payload && payload.error ? payload.error : copy.saveFailed);
+        return;
+      }
+      if (payload && "hasKey" in payload) {
+        setHasKey(payload.hasKey);
+        setKeyMask(payload.keyMask);
+      }
+      setApiKey("");
+      setSaveNotice(copy.saveSuccess);
+    } catch {
+      setSaveError(copy.saveFailed);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save() {
     if (busy) return;
     setSaving(true);
@@ -204,16 +242,30 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
           ) : undefined
         }
       >
-        <Input
-          id="settings-api-key"
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={keyPlaceholder}
-          autoComplete="new-password"
-          spellCheck={false}
-          className={`mt-2 ${focusInk}`}
-        />
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Input
+            id="settings-api-key"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={keyPlaceholder}
+            autoComplete="new-password"
+            spellCheck={false}
+            className={`min-w-0 flex-1 ${focusInk}`}
+          />
+          {hasKey && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-none text-pencil hover:text-ink"
+              disabled={busy}
+              onClick={() => void clearKey()}
+            >
+              {copy.clearKeyButton}
+            </Button>
+          )}
+        </div>
       </FieldSection>
 
       {/* 03 · 对话模型 */}

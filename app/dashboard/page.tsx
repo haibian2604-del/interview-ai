@@ -26,7 +26,9 @@ const TYPE_LABELS: Record<string, string> = {
   mixed: COPY.interviewNew.typeMixed,
 };
 
-// 状态章油墨纪律：进行中=蓝墨、已完成=黑墨、待开始=黑墨细框、出卷中/出卷失败/缺考=灰章
+// 状态章油墨纪律：进行中=蓝墨、已完成=黑墨、待开始=黑墨细框、出卷中/出卷失败/缺考=灰章。
+// 灰章用 ink-stamp（D3）：pencil 在章文字处对比度不足 4.5:1，加深一档
+const GREY_STAMP = "border-ink-stamp/60 text-ink-stamp";
 const STATUS_STAMPS: Record<string, { label: string; className: string }> = {
   ready: { label: COPY.dashboard.statusReady, className: "border-ink/40 text-ink/70" },
   in_progress: {
@@ -37,15 +39,13 @@ const STATUS_STAMPS: Record<string, { label: string; className: string }> = {
     label: COPY.dashboard.statusCompleted,
     className: "border-ink bg-ink/[0.05] text-ink",
   },
-  generating: { label: COPY.dashboard.statusGenerating, className: "border-pencil/60 text-pencil" },
-  draft: { label: COPY.dashboard.statusDraft, className: "border-pencil/60 text-pencil" },
-  abandoned: { label: COPY.dashboard.statusAbandoned, className: "border-pencil/60 text-pencil" },
+  generating: { label: COPY.dashboard.statusGenerating, className: GREY_STAMP },
+  draft: { label: COPY.dashboard.statusDraft, className: GREY_STAMP },
+  abandoned: { label: COPY.dashboard.statusAbandoned, className: GREY_STAMP },
 };
 
 function statusStamp(status: string) {
-  return (
-    STATUS_STAMPS[status] ?? { label: status, className: "border-pencil/60 text-pencil" }
-  );
+  return STATUS_STAMPS[status] ?? { label: status, className: GREY_STAMP };
 }
 
 // 点击行为：未阅卷的卷（待开始/进行中）回面试现场续答；阅卷完成的看批注；其余章封存不可点
@@ -74,9 +74,11 @@ function entryNo(total: number, indexDesc: number) {
   return `No.${String(total - indexDesc).padStart(3, "0")}`;
 }
 
-// 目录行的六栏栅格：编号 / 岗位 / 题型 / 日期 / 状态章 / 总分章
+// 目录行的六栏栅格：编号 / 岗位 / 题型 / 日期 / 状态章 / 总分章。
+// D1：移动端（<md）目录行降为纵向堆叠卡（编号+岗位 / 元数据 / 章 三行），md 起保持六栏栅格；
+// 分组容器用 md:contents 在桌面端摊平，单元格照常入栏。
 const ROW_GRID =
-  "grid grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6.5rem_8rem_5rem] items-center gap-x-4";
+  "md:grid md:grid-cols-[4.5rem_minmax(0,1fr)_4.5rem_6.5rem_8rem_5rem] md:items-center md:gap-x-4";
 
 export const metadata = { title: COPY.dashboard.title };
 
@@ -175,13 +177,13 @@ export default async function DashboardPage() {
               <p className="font-mono text-xs text-pencil">{copy.headerHint}</p>
             </div>
 
-            {/* 目录表：hairline 行线承担结构，整行可点的条目 hover 走纸感 */}
-            <div className="overflow-x-auto">
-              <div className="min-w-[760px]">
-                {/* 表头栏目 */}
-                <div
-                  className={`${ROW_GRID} border-b border-ink/15 pb-2 pr-14 pt-6 font-mono text-[10px] tracking-[0.3em] text-pencil uppercase`}
-                >
+            {/* 目录表：hairline 行线承担结构，整行可点的条目 hover 走纸感。
+                D1：移动端堆叠卡（表头栏目隐藏），md 起六栏栅格 */}
+            <div>
+              {/* 表头栏目（移动端隐藏：堆叠卡自带字段语义） */}
+              <div
+                className={`${ROW_GRID} hidden border-b border-ink/15 pb-2 pr-14 pt-6 font-mono text-[10px] tracking-[0.3em] text-pencil uppercase`}
+              >
                   <span>{copy.colNo}</span>
                   <span>{copy.colPosition}</span>
                   <span>{copy.colType}</span>
@@ -197,38 +199,45 @@ export default async function DashboardPage() {
                     const score = reportScore(row);
                     // 印章逐行缓入落章：目录翻开时的印刷节奏
                     const delay = { animationDelay: `${(i * 0.05).toFixed(2)}s` };
+                    // 三段分组：移动端各成一行（编号+岗位 / 元数据 / 章），md 下 contents 摊平入栅格
                     const cells = (
                       <>
-                        <span className="font-mono text-sm tracking-widest">{no}</span>
-                        <span className="min-w-0 truncate font-heading text-lg font-semibold tracking-wide group-hover:underline group-hover:decoration-ink/30 group-hover:underline-offset-4">
-                          {row.position}
-                        </span>
-                        <span className="font-mono text-xs text-pencil">
-                          {TYPE_LABELS[row.interview_type] ?? row.interview_type}
-                        </span>
-                        <span className="font-mono text-xs tabular-nums text-pencil">
-                          {formatDate(row.created_at)}
-                        </span>
-                        <span>
-                          <span
-                            className={`mirror-stamp-in inline-block border px-2.5 py-1 font-mono text-xs tracking-[0.25em] ${stamp.className}`}
-                            style={delay}
-                          >
-                            {stamp.label}
+                        <div className="flex min-w-0 items-baseline gap-3 md:contents">
+                          <span className="shrink-0 font-mono text-sm tracking-widest">{no}</span>
+                          <span className="min-w-0 truncate font-heading text-lg font-semibold tracking-wide group-hover:underline group-hover:decoration-ink/30 group-hover:underline-offset-4">
+                            {row.position}
                           </span>
-                        </span>
-                        <span className="text-right">
-                          {score != null ? (
+                        </div>
+                        <div className="flex items-center gap-4 md:contents">
+                          <span className="font-mono text-xs text-pencil">
+                            {TYPE_LABELS[row.interview_type] ?? row.interview_type}
+                          </span>
+                          <span className="font-mono text-xs tabular-nums text-pencil">
+                            {formatDate(row.created_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 md:contents">
+                          <span>
                             <span
-                              className="mirror-stamp-in inline-block border border-ink-red/70 px-2 py-0.5 font-mono text-base leading-6 tabular-nums text-ink-red"
+                              className={`mirror-stamp-in inline-block border px-2.5 py-1 font-mono text-xs tracking-[0.25em] ${stamp.className}`}
                               style={delay}
                             >
-                              {Math.round(score)}
+                              {stamp.label}
                             </span>
-                          ) : (
-                            <span className="font-mono text-sm text-pencil/70">—</span>
-                          )}
-                        </span>
+                          </span>
+                          <span className="ml-auto text-right md:ml-0">
+                            {score != null ? (
+                              <span
+                                className="mirror-stamp-in inline-block border border-ink-red/70 px-2 py-0.5 font-mono text-base leading-6 tabular-nums text-ink-red"
+                                style={delay}
+                              >
+                                {Math.round(score)}
+                              </span>
+                            ) : (
+                              <span className="font-mono text-sm text-pencil/70">—</span>
+                            )}
+                          </span>
+                        </div>
                       </>
                     );
                     return (
@@ -236,12 +245,12 @@ export default async function DashboardPage() {
                         {href ? (
                           <Link
                             href={href}
-                            className={`${ROW_GRID} group border-b border-ink/15 py-4 pr-14 transition-colors hover:bg-ink/[0.03] focus-visible:bg-ink/[0.04] focus-visible:outline-none`}
+                            className={`${ROW_GRID} group flex flex-col gap-2.5 border-b border-ink/15 py-4 pr-14 transition-colors hover:bg-ink/[0.03] focus-visible:bg-ink/[0.04] focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ink`}
                           >
                             {cells}
                           </Link>
                         ) : (
-                          <div className={`${ROW_GRID} border-b border-ink/15 py-4 pr-14`}>{cells}</div>
+                          <div className={`${ROW_GRID} flex flex-col gap-2.5 border-b border-ink/15 py-4 pr-14`}>{cells}</div>
                         )}
                         <div className="absolute right-0 top-1/2 -translate-y-1/2">
                           <DeleteInterviewButton interviewId={row.id} />
@@ -250,7 +259,6 @@ export default async function DashboardPage() {
                     );
                   })}
                 </ul>
-              </div>
             </div>
           </>
         )}

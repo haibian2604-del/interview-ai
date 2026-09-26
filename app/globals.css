@@ -9,11 +9,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  --font-heading: var(--font-heading-serif, "Songti SC"), "STSong", "SimSun", "Noto Serif SC", serif;
   /* 三色油墨纪律：黑印刷 / 红批改 / 蓝作答（铅印灰属黑印刷系） */
   --color-paper: #fbfaf7;
   --color-ink: #21201d;
   --color-pencil: #8a8a84;
+  /* D3：章文字专用灰——pencil（#8a8a84）在章文字处对比度不足 4.5:1，加深一档（对纸白 ≈ 6.5:1） */
+  --color-ink-stamp: #5a5952;
   --color-ink-red: #a63a2f;
   --color-ink-blue: #2b4acb;
   --color-sidebar-ring: var(--sidebar-ring);

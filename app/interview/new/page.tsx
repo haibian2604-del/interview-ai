@@ -189,6 +189,25 @@ export default function InterviewNewPage() {
   const copy = COPY.interviewNew;
   const busy = phase === "printing";
 
+  // D6：radiogroup 方向键——↑/↓（含 ←/→）在档案卡间循环移动选中项并跟随焦点
+  function onRadiogroupKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    if (!keys.includes(e.key)) return;
+    if (!resumes || resumes.length === 0) return;
+    e.preventDefault();
+    const forward = e.key === "ArrowDown" || e.key === "ArrowRight";
+    const currentIdx = resumes.findIndex((r) => r.id === resumeId);
+    const nextIdx =
+      currentIdx === -1
+        ? forward
+          ? 0
+          : resumes.length - 1
+        : (currentIdx + (forward ? 1 : -1) + resumes.length) % resumes.length;
+    const next = resumes[nextIdx];
+    setResumeId(next.id);
+    document.getElementById(`resume-radio-${next.id}`)?.focus();
+  }
+
   return (
     <main className="min-h-screen bg-paper text-ink">
       <BackButton className="mb-6" />
@@ -244,7 +263,12 @@ export default function InterviewNewPage() {
                     </div>
                   )}
                   {resumes !== null && resumes.length > 0 && (
-                    <div role="radiogroup" aria-label={copy.stepOneTitle} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div
+                      role="radiogroup"
+                      aria-label={copy.stepOneTitle}
+                      onKeyDown={onRadiogroupKeyDown}
+                      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    >
                       {resumes.map((resume, i) => {
                         const selected = resumeId === resume.id;
                         return (
@@ -252,6 +276,7 @@ export default function InterviewNewPage() {
                             key={resume.id}
                             type="button"
                             role="radio"
+                            id={`resume-radio-${resume.id}`}
                             aria-checked={selected}
                             disabled={busy}
                             onClick={() => setResumeId(resume.id)}
