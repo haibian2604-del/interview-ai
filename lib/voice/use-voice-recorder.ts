@@ -39,7 +39,10 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
   const timerRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
   const optsRef = useRef(opts);
-  optsRef.current = opts; // 回调保持最新，避免 effect 依赖链
+  // 每次渲染后同步回调，保持最新，避免 effect 依赖链（渲染期写 ref 会被 react-hooks/refs 拦截）
+  useEffect(() => {
+    optsRef.current = opts;
+  });
 
   const releaseStream = useCallback(() => {
     if (timerRef.current !== null) {
