@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { COPY } from "@/lib/copy";
 
 type PutResult = { ok: true; payload: MaskedLlmSettings } | { ok: false; error: string };
@@ -63,6 +64,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
   const [keyMask, setKeyMask] = useState(initial.keyMask);
 
   const [saving, setSaving] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -106,7 +108,6 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
   /** D5：清除已存密钥——PUT 传空串（API 空串语义 = 清除，回落系统默认 env） */
   async function clearKey() {
     if (busy || !hasKey) return;
-    if (!window.confirm(copy.clearKeyConfirm)) return;
     setSaving(true);
     setSaveError(null);
     setSaveNotice(null);
@@ -246,7 +247,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
               size="sm"
               className="relative rounded-none text-pencil hover:text-ink before:absolute before:inset-[-10px] before:max-md:content-['']"
               disabled={busy}
-              onClick={() => void clearKey()}
+              onClick={() => setClearConfirmOpen(true)}
             >
               {copy.clearKeyButton}
             </Button>
@@ -327,6 +328,15 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
           )}
         </div>
       </footer>
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title={copy.clearKeyTitle}
+        description={copy.clearKeyConfirm}
+        confirmLabel={copy.clearKeyButton ?? COPY.common.dialogOk}
+        destructive
+        onConfirm={() => void clearKey()}
+      />
     </form>
   );
 }

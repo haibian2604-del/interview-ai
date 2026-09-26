@@ -1,6 +1,8 @@
 export const COPY = {
   common: {
     back: "返回",
+    dialogCancel: "取消",
+    dialogOk: "知道了",
     /** 卷宗编号展示：interview / report 两页卷首共用（{no} 为卷 id 前 8 位） */
     volumeNo: "卷号 {no}",
   },
@@ -25,6 +27,7 @@ export const COPY = {
   },
   dashboard: {
     deleteLabel: "销档",
+    deleteFailedTitle: "销档未完成",
     deleteConfirm: "确认销毁这份卷宗？作答、批改与报告将一并删除，不可恢复。",
     deleteFailed: "销档失败，请重试一次。",
     title: "面试目录 · 面镜 Mirror",
@@ -84,6 +87,7 @@ export const COPY = {
     profilePending: "画像待生成：此档案将在首场面试时完成结构化。",
     deleteButton: "销档",
     deleting: "销档中…",
+    deleteTitle: "销档确认",
     deleteConfirm: "确认销档？此档案的面试记录将一并销毁。",
     successNote: "已入卷。",
     pasteTooShort: "文本太短：不足 50 字，请粘贴完整简历。",
@@ -142,6 +146,7 @@ export const COPY = {
   interview: {
     headerLabel: "现场作答 · 考官评分簿",
     abandonButton: "放弃面试",
+    abandonTitle: "放弃面试",
     abandonConfirm: "确认缺考离场？本场面试将盖上「缺考」章，无法继续作答。",
     abandonFailed: "弃考没有完成，请重试一次。",
     answerLabel: "作答区",
@@ -241,6 +246,7 @@ export const COPY = {
     evalFallbackHint: "留空则沿用系统默认（未配置时与对话模型一致）",
     keyUndecryptable: "已存的密钥无法解密（加密密钥可能已更换），请重新填写。",
     clearKeyButton: "清除已存密钥",
+    clearKeyTitle: "清除已存密钥",
     clearKeyConfirm: "确认清除已存的 API 密钥？清除后将回落系统默认装备。",
     saveButton: "存档入卷",
     saving: "存档中…",

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
@@ -191,14 +192,16 @@ function ResumeCard({
 }) {
   const supabase = createSupabaseBrowserClient();
   const [expanded, setExpanded] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // B12：画像已结构化的档案展示摘要 + 考察点，未结构化的维持「画像待生成」占位
   const profile = resumeProfilePreview(resume.structured_json);
 
   // 销档（B6）：先销索引行（ cascade 清面试记录），再尽力而为清 Storage 原件——
   // 顺序反过来会在行删除失败时留下「指向已删原件」的孤儿行
   async function destroy() {
-    if (!window.confirm(COPY.resumes.deleteConfirm)) return;
+    // 确认弹窗已前置：此函数由 ConfirmDialog 的 onConfirm 调用
     setDeleting(true);
     try {
       const { error } = await supabase
@@ -279,11 +282,20 @@ function ResumeCard({
           size="sm"
           className="rounded-none text-pencil hover:text-ink"
           disabled={deleting}
-          onClick={() => void destroy()}
+          onClick={() => setConfirmOpen(true)}
         >
           {deleting ? COPY.resumes.deleting : COPY.resumes.deleteButton}
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={COPY.resumes.deleteTitle}
+        description={COPY.resumes.deleteConfirm}
+        confirmLabel={COPY.resumes.deleteButton}
+        destructive
+        onConfirm={() => void destroy()}
+      />
     </li>
   );
 }

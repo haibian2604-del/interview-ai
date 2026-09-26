@@ -7,6 +7,7 @@ import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { QuestionProgress } from "@/components/interview/question-progress";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { COPY } from "@/lib/copy";
 import type { ChatMessage, StampData } from "@/lib/interview/mappers";
 
@@ -130,6 +131,7 @@ export function ChatStream(props: ChatStreamProps) {
   const [currentIndex, setCurrentIndex] = useState(props.initialCurrentIndex);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [abandonConfirmOpen, setAbandonConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const startedRef = useRef(false);
@@ -351,7 +353,6 @@ export function ChatStream(props: ChatStreamProps) {
 
   async function abandon() {
     if (busy || ended) return;
-    if (!window.confirm(copy.abandonConfirm)) return;
     setBusy(true);
     setError(null);
     try {
@@ -410,7 +411,7 @@ export function ChatStream(props: ChatStreamProps) {
       variant="outline"
       className="w-full rounded-none border-ink/25 text-ink/60 hover:text-ink"
       disabled={busy || ended}
-      onClick={() => void abandon()}
+      onClick={() => setAbandonConfirmOpen(true)}
     >
       {copy.abandonButton}
     </Button>
@@ -449,7 +450,7 @@ export function ChatStream(props: ChatStreamProps) {
             size="sm"
             className="shrink-0 rounded-none border-ink/25 text-ink/60"
             disabled={busy || ended}
-            onClick={() => void abandon()}
+            onClick={() => setAbandonConfirmOpen(true)}
           >
             {copy.abandonButton}
           </Button>
@@ -538,6 +539,15 @@ export function ChatStream(props: ChatStreamProps) {
           </div>
         </div>
       </section>
-    </div>
+    <ConfirmDialog
+        open={abandonConfirmOpen}
+        onOpenChange={setAbandonConfirmOpen}
+        title={copy.abandonTitle}
+        description={copy.abandonConfirm}
+        confirmLabel={copy.abandonButton}
+        destructive
+        onConfirm={() => void abandon()}
+      />
+      </div>
   );
 }
