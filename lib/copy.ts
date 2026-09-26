@@ -271,8 +271,14 @@ export const COPY = {
     errNoAudio: "未收到有效录音，请重试",
     errTooLarge: "录音过大（上限 4MB）：请控制单次作答时长",
     transcribeFailed: "转写失败：上游语音识别服务未正常响应，可改用键盘作答",
-    // Task 5/6 追加：unsupported / micDenied / recordingMax / startRecording / stopAndTranscribe /
-    //               cancelRecording / transcribing / recordedHint
+    // Task 5 追加（按钮/状态文案供 Task 6 消费）
+    unsupported: "当前浏览器不支持语音输入，请改用键盘作答",
+    micDenied: "麦克风权限被拒绝：请在浏览器地址栏允许麦克风后重试",
+    recordingMax: "已达单次录音上限（3 分钟），自动进入转写",
+    startRecording: "语音作答",
+    stopAndTranscribe: "结束并转写",
+    cancelRecording: "放弃",
+    transcribing: "转写中……",
   },
   /** API 路由响应体错误文案的唯一来源：路由层不写中文硬编码 */
   api: {
