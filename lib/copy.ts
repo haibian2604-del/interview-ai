@@ -266,6 +266,14 @@ export const COPY = {
     errApiKeyLength: "API Key 长度需在 8-500 字符之间。",
     errModelTooLong: "模型名过长（上限 200 字符）。",
   },
+  voice: {
+    notConfigured: "语音作答尚未配置：请到「装备单」登记语音识别端点、密钥与模型",
+    errNoAudio: "未收到有效录音，请重试",
+    errTooLarge: "录音过大（上限 4MB）：请控制单次作答时长",
+    transcribeFailed: "转写失败：上游语音识别服务未正常响应，可改用键盘作答",
+    // Task 5/6 追加：unsupported / micDenied / recordingMax / startRecording / stopAndTranscribe /
+    //               cancelRecording / transcribing / recordedHint
+  },
   /** API 路由响应体错误文案的唯一来源：路由层不写中文硬编码 */
   api: {
     unauthorized: "未登录",
