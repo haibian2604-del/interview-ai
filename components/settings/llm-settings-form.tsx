@@ -71,7 +71,9 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
   const keyUndecryptable = hasKey && keyMask === "";
 
   const keyPlaceholder = hasKey
-    ? copy.apiKeyPlaceholderMasked.replace("{mask}", keyMask)
+    ? keyUndecryptable
+      ? copy.apiKeyPlaceholderUndecryptable
+      : copy.apiKeyPlaceholderMasked.replace("{mask}", keyMask)
     : copy.apiKeyPlaceholder;
 
   const busy = saving || testing;
@@ -269,7 +271,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         <div aria-live="polite">
           {saveNotice && (
             <p className="mt-4 border border-ink/20 bg-ink/[0.03] px-4 py-2 text-sm">
-              ✓ {saveNotice}
+              {copy.okMark} {saveNotice}
             </p>
           )}
           {saveError && (
@@ -278,7 +280,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
             </div>
           )}
           {testOk && (
-            <p className="mt-4 font-mono text-sm tracking-wide text-ink">✓ {testOk}</p>
+            <p className="mt-4 font-mono text-sm tracking-wide text-ink">{copy.okMark} {testOk}</p>
           )}
           {testError && (
             <div className="mt-4">
