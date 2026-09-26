@@ -1,4 +1,7 @@
 export const COPY = {
+  common: {
+    back: "返回",
+  },
   login: {
     title: "登录 · 面镜 Mirror",
     brand: "面镜 Mirror",

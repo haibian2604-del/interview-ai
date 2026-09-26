@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
+import { BackButton } from "@/components/back-button";
 
 type ResumeRow = { id: string; created_at: string };
 type InterviewType = "skill" | "project" | "behavioral" | "mixed";
@@ -190,6 +191,7 @@ export default function InterviewNewPage() {
 
   return (
     <main className="min-h-screen bg-paper text-ink">
+      <BackButton className="mb-6" />
       <div className="mx-auto w-full max-w-3xl px-10 py-14">
         {/* 卷首 */}
         <header className="border-b border-ink/15 pb-8">

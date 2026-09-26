@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getMaskedLlmSettings } from "@/lib/settings/service";
 import { LlmSettingsForm } from "@/components/settings/llm-settings-form";
 import { COPY } from "@/lib/copy";
+import { BackButton } from "@/components/back-button";
 
 export const metadata = { title: COPY.settings.title };
 
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
       <div className="mx-auto w-full max-w-3xl px-10 py-14">
+        <BackButton className="mb-6" />
         {/* 卷首：与简历档案库同构 */}
         <header className="border-b border-ink/15 pb-8">
           <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">

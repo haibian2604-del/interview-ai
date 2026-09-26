@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { ChatStream } from "@/components/interview/chat-stream";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
+import { BackButton } from "@/components/back-button";
 import {
   deriveChatMessages,
   type StampData,
@@ -117,6 +118,7 @@ export default async function InterviewPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
+      <BackButton className="mb-6" />
       {/* 卷首 */}
       <header className="border-b border-ink/15 px-10 py-5">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-1">

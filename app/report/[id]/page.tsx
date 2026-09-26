@@ -3,6 +3,7 @@ import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { ScoreRadar, type DimensionKey } from "@/components/report/score-radar";
 import { GenerateReportButton } from "@/components/report/generate-report-button";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
+import { BackButton } from "@/components/back-button";
 import { COPY } from "@/lib/copy";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
@@ -173,6 +174,7 @@ export default async function ReportPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
+      <BackButton className="mb-6" />
       {header}
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-10 pb-16 pt-10">
