@@ -22,6 +22,9 @@ export const COPY = {
     authError: "登录没有完成，请回卷重试。",
   },
   dashboard: {
+    deleteLabel: "销档",
+    deleteConfirm: "确认销毁这份卷宗？作答、批改与报告将一并删除，不可恢复。",
+    deleteFailed: "销档失败，请重试一次。",
     title: "面试目录 · 面镜 Mirror",
     brand: "面镜 Mirror",
     navSettings: "设置",

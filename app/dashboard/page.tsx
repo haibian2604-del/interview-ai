@@ -4,6 +4,7 @@ import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { buttonVariants } from "@/components/ui/button";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
+import { DeleteInterviewButton } from "@/components/dashboard/delete-interview-button";
 import { COPY } from "@/lib/copy";
 
 type InterviewRow = {
@@ -179,7 +180,7 @@ export default async function DashboardPage() {
               <div className="min-w-[760px]">
                 {/* 表头栏目 */}
                 <div
-                  className={`${ROW_GRID} border-b border-ink/15 pb-2 pt-6 font-mono text-[10px] tracking-[0.3em] text-pencil uppercase`}
+                  className={`${ROW_GRID} border-b border-ink/15 pb-2 pr-14 pt-6 font-mono text-[10px] tracking-[0.3em] text-pencil uppercase`}
                 >
                   <span>{copy.colNo}</span>
                   <span>{copy.colPosition}</span>
@@ -231,17 +232,20 @@ export default async function DashboardPage() {
                       </>
                     );
                     return (
-                      <li key={row.id} className="list-none">
+                      <li key={row.id} className="relative list-none">
                         {href ? (
                           <Link
                             href={href}
-                            className={`${ROW_GRID} group border-b border-ink/15 py-4 transition-colors hover:bg-ink/[0.03] focus-visible:bg-ink/[0.04] focus-visible:outline-none`}
+                            className={`${ROW_GRID} group border-b border-ink/15 py-4 pr-14 transition-colors hover:bg-ink/[0.03] focus-visible:bg-ink/[0.04] focus-visible:outline-none`}
                           >
                             {cells}
                           </Link>
                         ) : (
-                          <div className={`${ROW_GRID} border-b border-ink/15 py-4`}>{cells}</div>
+                          <div className={`${ROW_GRID} border-b border-ink/15 py-4 pr-14`}>{cells}</div>
                         )}
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                          <DeleteInterviewButton interviewId={row.id} />
+                        </div>
                       </li>
                     );
                   })}
