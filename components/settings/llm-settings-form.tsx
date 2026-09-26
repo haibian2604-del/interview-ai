@@ -244,7 +244,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
               type="button"
               variant="ghost"
               size="sm"
-              className="rounded-none text-pencil hover:text-ink"
+              className="relative rounded-none text-pencil hover:text-ink before:absolute before:inset-[-10px] before:max-md:content-['']"
               disabled={busy}
               onClick={() => void clearKey()}
             >

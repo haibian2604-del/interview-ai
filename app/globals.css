@@ -13,7 +13,7 @@
   /* 三色油墨纪律：黑印刷 / 红批改 / 蓝作答（铅印灰属黑印刷系） */
   --color-paper: #fbfaf7;
   --color-ink: #21201d;
-  --color-pencil: #8a8a84;
+  --color-pencil: #6f6e68; /* 铅印灰：对纸白 4.9:1，信息文本达 WCAG AA */
   /* D3：章文字专用灰——pencil（#8a8a84）在章文字处对比度不足 4.5:1，加深一档（对纸白 ≈ 6.5:1） */
   --color-ink-stamp: #5a5952;
   --color-ink-red: #a63a2f;
@@ -92,39 +92,8 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
+/* 深色模式刻意未设计（评分簿 = 纸白印刷世界）；脚手架遗留的 .dark token 块已删除，
+   避免误加 .dark class 时出现「深底深字」的破裂状态 */
 
 @layer base {
   * {
@@ -146,3 +115,11 @@
   100% { opacity: 1; transform: scale(1) rotate(-2deg); }
 }
 .mirror-stamp-in { animation: mirror-stamp-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* 前庭安全：动画降为静态终态（印章直接落定、进行中格改静态表达），状态语义不丢 */
+@media (prefers-reduced-motion: reduce) {
+  .mirror-stamp-in,
+  .mirror-breathe,
+  .mirror-print-pulse {
+    animation: none;
+  }
+}

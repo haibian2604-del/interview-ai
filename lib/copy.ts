@@ -196,6 +196,7 @@ export const COPY = {
     unauthorized: "未登录，请回登录页重新查看。",
     overallLabel: "总分",
     fullMarkLabel: "/ 100",
+    radarAriaLabel: "四维评分雷达图：相关性、深度、结构化、沟通",
     radarHint: "每维先看与目标的差距，再看分值。",
     gapPrefix: "距目标",
     gapUnit: "分",

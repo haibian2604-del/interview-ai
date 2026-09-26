@@ -38,6 +38,12 @@ function gapSentence(score: number): string {
  * - Radar 指针阻尼转动：缓出动画落定（无回弹），红批改油墨；
  * - 图侧逐维「先偏差后数值」批注栏（差距句 → 分值）。
  */
+/* 与 globals.css 的 token 同值：recharts 以 SVG 属性下色，attribute 不支持 var()，
+   故在文件内单源化，改 token 时需同步此处 */
+const RADAR_INK = "#21201d";
+const RADAR_PENCIL = "#6f6e68";
+const RADAR_RED = "#a63a2f";
+
 export function ScoreRadar({
   dimensionScores,
 }: {
@@ -53,32 +59,34 @@ export function ScoreRadar({
     <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
       {/* 雷达图：细线网格 + 黑墨维度标签 + 红墨多边形阻尼落定 */}
       <div className="h-72 w-full">
+        <div role="img" aria-label={COPY.report.radarAriaLabel}>
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="70%" margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-            <PolarGrid stroke="#21201d" strokeOpacity={0.18} strokeWidth={1} />
+            <PolarGrid stroke={RADAR_INK} strokeOpacity={0.18} strokeWidth={1} />
             <PolarAngleAxis
               dataKey="dim"
-              tick={{ fill: "#21201d", fontSize: 12, fontFamily: "var(--font-sans)" }}
+              tick={{ fill: RADAR_INK, fontSize: 12, fontFamily: "var(--font-sans)" }}
             />
             <PolarRadiusAxis
               angle={90}
               domain={[0, 100]}
               tickCount={5}
-              tick={{ fill: "#8a8a84", fontSize: 10 }}
+              tick={{ fill: RADAR_PENCIL, fontSize: 10 }}
               tickLine={false}
               axisLine={{ stroke: "#21201d", strokeOpacity: 0.18, strokeWidth: 1 }}
             />
             <Radar
               dataKey="value"
-              stroke="#a63a2f"
+              stroke={RADAR_RED}
               strokeWidth={1.5}
-              fill="#a63a2f"
+              fill={RADAR_RED}
               fillOpacity={0.1}
               animationDuration={1100}
               animationEasing="ease-out"
             />
           </RadarChart>
         </ResponsiveContainer>
+        </div>
       </div>
 
       {/* 批注栏：每维先差距句（红墨）后分值（等宽印刷数字），语义顺序不可换 */}

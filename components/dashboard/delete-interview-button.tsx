@@ -34,7 +34,7 @@ export function DeleteInterviewButton({ interviewId }: { interviewId: string }) 
       type="button"
       onClick={destroy}
       disabled={deleting}
-      className="rounded-none border border-transparent px-1.5 py-1 font-mono text-xs tracking-[0.2em] text-pencil transition-colors hover:border-ink-red/40 hover:text-ink-red focus-visible:border-ink-blue focus-visible:outline-none disabled:opacity-50"
+      className="relative rounded-none border border-transparent px-1.5 py-1 font-mono text-xs before:absolute before:inset-[-10px] before:content-[''] tracking-[0.2em] text-pencil transition-colors hover:border-ink-red/40 hover:text-ink-red focus-visible:border-ink-blue focus-visible:outline-none disabled:opacity-50"
     >
       {copy.deleteLabel}
     </button>

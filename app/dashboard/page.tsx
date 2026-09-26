@@ -234,7 +234,7 @@ export default async function DashboardPage() {
                                 {Math.round(score)}
                               </span>
                             ) : (
-                              <span className="font-mono text-sm text-pencil/70">—</span>
+                              <span className="font-mono text-sm text-pencil">—</span>
                             )}
                           </span>
                         </div>
