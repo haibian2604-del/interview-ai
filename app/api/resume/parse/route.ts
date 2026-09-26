@@ -21,8 +21,23 @@ export async function POST(request: Request) {
   if (file.type !== "application/pdf") {
     return NextResponse.json({ error: COPY.api.pdfOnly }, { status: 400 });
   }
+  // B7：文件大小上限 10MB，超限 422
+  const MAX_PDF_BYTES = 10 * 1024 * 1024;
+  if (file.size > MAX_PDF_BYTES) {
+    return NextResponse.json({ error: COPY.api.pdfTooLarge }, { status: 422 });
+  }
   const buffer = Buffer.from(await file.arrayBuffer());
-  const rawText = await extractPdfText(buffer);
+  let rawText: string;
+  try {
+    rawText = await extractPdfText(buffer);
+  } catch (e) {
+    // 坏损 PDF：原始解析错误只进日志，客户端拿通用文案
+    console.error(
+      "[resume/parse] extractPdfText failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+  }
   if (rawText.length < 50) {
     return NextResponse.json({ error: COPY.api.pdfTextTooShort }, { status: 422 });
   }
@@ -33,7 +48,8 @@ export async function POST(request: Request) {
     .from("resumes")
     .upload(path, buffer, { contentType: "application/pdf" });
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    console.error("[resume/parse] storage upload failed:", uploadError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   const { data, error } = await supabase
     .from("resumes")
@@ -41,7 +57,8 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[resume/parse] insert resume failed:", error.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   return NextResponse.json({ resumeId: data.id, rawText });
 }

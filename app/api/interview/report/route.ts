@@ -14,7 +14,13 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: COPY.api.unauthorized }, { status: 401 });
   }
-  const { interviewId } = (await request.json()) as { interviewId: string };
+  // 与 answer/start 同先例：非法 body 400（此前这里无兜底，坏 JSON 会变成未处理 500）
+  let interviewId: string;
+  try {
+    ({ interviewId } = (await request.json()) as { interviewId: string });
+  } catch {
+    return NextResponse.json({ error: COPY.api.invalidJson }, { status: 400 });
+  }
   const supabase = await createSupabaseServerClient();
 
   const { data: interview } = await supabase
@@ -58,11 +64,21 @@ export async function POST(request: Request) {
     });
   }
 
-  const report = await generateReport(user.id, {
-    position: interview.position,
-    questionContents: questions.map((q) => q.content),
-    evaluations: aligned,
-  });
+  // LLM 失败：原始 message 只进日志，客户端拿通用文案
+  let report: Awaited<ReturnType<typeof generateReport>>;
+  try {
+    report = await generateReport(user.id, {
+      position: interview.position,
+      questionContents: questions.map((q) => q.content),
+      evaluations: aligned,
+    });
+  } catch (e) {
+    console.error(
+      "[interview/report] generateReport failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
+  }
 
   const { data: inserted, error } = await supabase
     .from("reports")
@@ -75,6 +91,15 @@ export async function POST(request: Request) {
       improvements_md: report.improvements,
     })
     .select("id").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // B5：双开页并发誊写撞 interview_id 唯一约束（23505）时回读已有报告，幂等返回
+    if (error.code === "23505") {
+      const { data: existing } = await supabase
+        .from("reports").select("id").eq("interview_id", interviewId).maybeSingle();
+      if (existing) return NextResponse.json({ reportId: existing.id });
+    }
+    console.error("[interview/report] insert report failed:", error.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+  }
   return NextResponse.json({ reportId: inserted.id });
 }

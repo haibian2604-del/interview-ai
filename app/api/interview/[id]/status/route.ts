@@ -22,7 +22,8 @@ export async function GET(
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[interview/status] load interview failed:", error.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });

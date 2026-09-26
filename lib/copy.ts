@@ -239,6 +239,8 @@ export const COPY = {
     fallbackHint: "留空则使用系统默认",
     evalFallbackHint: "留空则沿用系统默认（未配置时与对话模型一致）",
     keyUndecryptable: "已存的密钥无法解密（加密密钥可能已更换），请重新填写。",
+    clearKeyButton: "清除已存密钥",
+    clearKeyConfirm: "确认清除已存的 API 密钥？清除后将回落系统默认装备。",
     saveButton: "存档入卷",
     saving: "存档中…",
     saveSuccess: "已入卷。",
@@ -269,10 +271,11 @@ export const COPY = {
     interviewNotFound: "面试不存在",
     unevaluatedQuestions: "存在未评估的题目，面试尚未完成",
     alreadyCompleted: "面试已完成，不能缺考",
-    answerPersistFailed: "作答落盘失败",
-    evaluateFailed: "评估失败",
     missingFileField: "缺少 file 字段",
     pdfOnly: "仅支持 PDF",
     pdfTextTooShort: "PDF 文本过少，可能是扫描件",
+    pdfTooLarge: "PDF 超过 10MB 上限，请压缩后重试",
+    /** 500/502 的统一对外文案：原始 error.message 只进服务端日志（console.error），绝不直通客户端 */
+    serverError: "服务器开小差了，请稍后重试。",
   },
 } as const;

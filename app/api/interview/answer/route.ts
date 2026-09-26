@@ -39,7 +39,8 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (interviewError) {
-    return NextResponse.json({ error: interviewError.message }, { status: 500 });
+    console.error("[interview/answer] load interview failed:", interviewError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });
@@ -64,10 +65,9 @@ export async function POST(request: Request) {
         .order("created_at"),
     ]);
   if (questionError || historyError) {
-    return NextResponse.json(
-      { error: questionError?.message ?? historyError?.message },
-      { status: 500 },
-    );
+    const message = questionError?.message ?? historyError?.message ?? "";
+    console.error("[interview/answer] load question/history failed:", message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!question) {
     return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
@@ -86,10 +86,10 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (candidateInsertError || !insertedMessage) {
-    return NextResponse.json(
-      { error: candidateInsertError?.message ?? COPY.api.answerPersistFailed },
-      { status: 500 },
-    );
+    if (candidateInsertError) {
+      console.error("[interview/answer] insert candidate message failed:", candidateInsertError.message);
+    }
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
 
   // C2：追问轮回答（role=followup）也是候选人的原话，喂 Agent 前归一，
@@ -114,10 +114,12 @@ export async function POST(request: Request) {
     if (rollbackError) {
       console.error("[interview/answer] rollback candidate message failed:", rollbackError.message);
     }
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : COPY.api.evaluateFailed },
-      { status: 502 },
+    // B1：评估失败原因（可能含上游网关细节）只进服务端日志，客户端拿通用文案
+    console.error(
+      "[interview/answer] evaluate failed:",
+      e instanceof Error ? e.message : String(e),
     );
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
   }
   const { error: upsertError } = await supabase.from("evaluations").upsert(
     {
@@ -130,7 +132,8 @@ export async function POST(request: Request) {
     { onConflict: "question_id" },
   );
   if (upsertError) {
-    return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    console.error("[interview/answer] upsert evaluation failed:", upsertError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
 
   // 编排器确定性决策（唯一事实来源）
@@ -145,13 +148,19 @@ export async function POST(request: Request) {
       .from("interviews")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", interviewId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[interview/answer] mark completed failed:", error.message);
+      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    }
   } else if (next.action === "next_question") {
     const { error } = await supabase
       .from("interviews")
       .update({ current_question_index: idx + 1 })
       .eq("id", interviewId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[interview/answer] advance question failed:", error.message);
+      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+    }
   }
 
   // 组装面试官话术 payload（history 用 C2 归一后的角色：followup 轮回答也是候选人）
@@ -168,7 +177,8 @@ export async function POST(request: Request) {
       .eq("idx", idx + 1)
       .maybeSingle();
     if (nextQuestionError) {
-      return NextResponse.json({ error: nextQuestionError.message }, { status: 500 });
+      console.error("[interview/answer] load next question failed:", nextQuestionError.message);
+      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
     }
     payload.nextQuestion = nextQuestion ? rowToQuestion(nextQuestion) : undefined;
   }
@@ -181,10 +191,11 @@ export async function POST(request: Request) {
       payload,
     );
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : COPY.interview.llmFailed },
-      { status: 502 },
+    console.error(
+      "[interview/answer] streamInterviewer failed:",
+      e instanceof Error ? e.message : String(e),
     );
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
   }
 
   // 旁路累积全文，流结束后落盘面试官消息；同时通过自定义头告知编排结果与批改分

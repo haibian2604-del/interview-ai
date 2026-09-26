@@ -16,13 +16,19 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: COPY.api.unauthorized }, { status: 401 });
   }
-  const body = (await request.json()) as {
+  let body: {
     resumeId: string;
     position: string;
     jdText?: string;
     interviewType: "skill" | "project" | "behavioral" | "mixed";
     questionCount?: number;
   };
+  // B3：非法 body 兜底 400（对齐 answer/start 先例）
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: COPY.api.invalidJson }, { status: 400 });
+  }
   // 服务端钳制：请求值不可信，题库对账以落库事实为准（见 lib/interview/count.ts）
   const count = clampQuestionCount(body.questionCount);
   const supabase = await createSupabaseServerClient();
@@ -48,17 +54,23 @@ export async function POST(request: Request) {
     })
     .select("id")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[interview/create] insert interview failed:", error.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
+  }
 
   try {
-    const profile = (resume.structured_json as ResumeProfile | null) ??
-      await analyzeResume(user.id, resume.raw_text);
-    // 副作用写入一律检查 error：失败走 catch 回滚 draft，避免静默产出打不开的卷
-    const { error: profileWriteError } = await supabase
-      .from("resumes")
-      .update({ structured_json: profile })
-      .eq("id", resume.id);
-    if (profileWriteError) throw new Error(profileWriteError.message);
+    // B11：画像已结构化的档案不重复跑分析、不重复回写
+    const existingProfile = (resume.structured_json as ResumeProfile | null) ?? null;
+    const profile = existingProfile ?? (await analyzeResume(user.id, resume.raw_text));
+    if (!existingProfile) {
+      // 副作用写入一律检查 error：失败走 catch 回滚 draft，避免静默产出打不开的卷
+      const { error: profileWriteError } = await supabase
+        .from("resumes")
+        .update({ structured_json: profile })
+        .eq("id", resume.id);
+      if (profileWriteError) throw new Error(profileWriteError.message);
+    }
 
     const questions = await generateQuestions(user.id, {
       profile,
@@ -95,11 +107,16 @@ export async function POST(request: Request) {
       .eq("id", interview.id);
     // NoObjectGeneratedError 携带模型原始输出（.text），带上头部片段便于定位 schema 不匹配的根因
     const raw = typeof (e as { text?: unknown })?.text === "string" ? (e as { text: string }).text : undefined;
+    const detail = e instanceof Error ? e.message : String(e);
     if (raw) console.error("[interview/create] raw model output:\n", raw.slice(0, 4000));
-    // 诊断拼接逻辑保留：base 文案来自 COPY.api，模型原始输出头部仅用于定位 schema 不匹配
-    const base = e instanceof Error ? e.message : COPY.api.questionSetFailed;
+    if (!raw) {
+      // B1：非 schema 类失败（DB 写入等）——原始 message 只进日志，客户端拿通用文案
+      console.error("[interview/create] question set failed:", detail);
+      return NextResponse.json({ error: COPY.api.questionSetFailed }, { status: 502 });
+    }
+    // 诊断拼接逻辑保留（产品决策）：schema 不匹配时带错误描述与模型输出头部
     return NextResponse.json(
-      { error: raw ? `${base}（模型输出头部：${raw.slice(0, 300)}…）` : base },
+      { error: `${detail}（模型输出头部：${raw.slice(0, 300)}…）` },
       { status: 502 },
     );
   }

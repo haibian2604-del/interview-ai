@@ -22,7 +22,8 @@ export async function POST(
     .eq("user_id", user.id)
     .maybeSingle();
   if (interviewError) {
-    return NextResponse.json({ error: interviewError.message }, { status: 500 });
+    console.error("[interview/abandon] load interview failed:", interviewError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });
@@ -39,7 +40,8 @@ export async function POST(
     .update({ status: "abandoned" })
     .eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[interview/abandon] mark abandoned failed:", error.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

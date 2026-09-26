@@ -35,7 +35,8 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (interviewError) {
-    return NextResponse.json({ error: interviewError.message }, { status: 500 });
+    console.error("[interview/start] load interview failed:", interviewError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!interview) {
     return NextResponse.json({ error: COPY.interview.notFound }, { status: 404 });
@@ -52,7 +53,8 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
     if (firstMessageError) {
-      return NextResponse.json({ error: firstMessageError.message }, { status: 500 });
+      console.error("[interview/start] load first message failed:", firstMessageError.message);
+      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
     }
     if (firstMessage) {
       return NextResponse.json({
@@ -72,19 +74,24 @@ export async function POST(request: Request) {
     .eq("idx", interview.current_question_index)
     .maybeSingle();
   if (questionError) {
-    return NextResponse.json({ error: questionError.message }, { status: 500 });
+    console.error("[interview/start] load question failed:", questionError.message);
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
   }
   if (!question) {
     return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
   }
 
   if (interview.status === "ready") {
+    // B4：状态条件守卫——双标签页同时开场时，后到的 update 因 status 已离开 ready 而 0 行生效，
+    // 不会覆盖先到方已写入的 in_progress
     const { error: updateError } = await supabase
       .from("interviews")
       .update({ status: "in_progress" })
-      .eq("id", interviewId);
+      .eq("id", interviewId)
+      .eq("status", "ready");
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error("[interview/start] mark in_progress failed:", updateError.message);
+      return NextResponse.json({ error: COPY.api.serverError }, { status: 500 });
     }
   }
 
@@ -96,10 +103,11 @@ export async function POST(request: Request) {
       followupText: null,
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : COPY.interview.llmFailed },
-      { status: 502 },
+    console.error(
+      "[interview/start] streamInterviewer failed:",
+      e instanceof Error ? e.message : String(e),
     );
+    return NextResponse.json({ error: COPY.api.serverError }, { status: 502 });
   }
 
   // 旁路累积全文，流结束后落盘面试官消息
