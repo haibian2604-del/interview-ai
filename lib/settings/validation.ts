@@ -6,6 +6,9 @@ export type LlmSettingsInputBody = {
   llmApiKey?: unknown;
   llmChatModel?: unknown;
   llmEvalModel?: unknown;
+  asrBaseUrl?: unknown;
+  asrApiKey?: unknown;
+  asrModel?: unknown;
 };
 
 /**
@@ -19,6 +22,9 @@ export type SanitizedLlmSettings = {
   llmApiKey?: string;
   llmChatModel?: string;
   llmEvalModel?: string;
+  asrBaseUrl?: string;
+  asrApiKey?: string;
+  asrModel?: string;
 };
 
 export type ValidateLlmSettingsResult =
@@ -32,6 +38,51 @@ export const LLM_SETTINGS_LIMITS = {
   modelMax: 200,
 } as const;
 
+type FieldKind = "url" | "key" | "model";
+
+/** 单字段净化：非字符串 → 类型错；空串放行（清除语义）；其余按类型规则 */
+function sanitizeField(kind: FieldKind, raw: unknown): { ok: true; value: string } | { ok: false; error: string } {
+  if (typeof raw !== "string") return { ok: false, error: COPY.settings.errInvalidType };
+  const value = raw.trim();
+  if (value === "") return { ok: true, value: "" };
+  if (kind === "url") {
+    // 必须以 https?:// 开头、可被 new URL() 解析、长度 ≤ baseUrlMax
+    if (!/^https?:\/\//.test(value)) {
+      return { ok: false, error: COPY.settings.errBaseUrlFormat };
+    }
+    try {
+      new URL(value);
+    } catch {
+      return { ok: false, error: COPY.settings.errBaseUrlFormat };
+    }
+    if (value.length > LLM_SETTINGS_LIMITS.baseUrlMax) {
+      return { ok: false, error: COPY.settings.errBaseUrlTooLong };
+    }
+  } else if (kind === "key") {
+    // 非空 trim 后长度 8-500
+    if (value.length < LLM_SETTINGS_LIMITS.apiKeyMin) {
+      return { ok: false, error: COPY.settings.errApiKeyLength };
+    }
+    if (value.length > LLM_SETTINGS_LIMITS.apiKeyMax) {
+      return { ok: false, error: COPY.settings.errApiKeyLength };
+    }
+  } else if (value.length > LLM_SETTINGS_LIMITS.modelMax) {
+    return { ok: false, error: COPY.settings.errModelTooLong };
+  }
+  return { ok: true, value };
+}
+
+/** 字段 → 校验类型（url/key/model，规则与错误文案 LLM、ASR 同源） */
+const FIELD_RULES = [
+  ["llmBaseUrl", "url"],
+  ["llmApiKey", "key"],
+  ["llmChatModel", "model"],
+  ["llmEvalModel", "model"],
+  ["asrBaseUrl", "url"],
+  ["asrApiKey", "key"],
+  ["asrModel", "model"],
+] as const;
+
 /** 逐字段校验的纯函数（可单测）：错误文案集中 COPY.settings，绝不回显 key 值 */
 export function validateLlmSettingsInput(body: unknown): ValidateLlmSettingsResult {
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
@@ -39,57 +90,12 @@ export function validateLlmSettingsInput(body: unknown): ValidateLlmSettingsResu
   }
   const raw = body as LlmSettingsInputBody;
   const value: SanitizedLlmSettings = {};
-
-  // Base URL：undefined=保持；""=清除；非空必须 https?:// 开头、可被 new URL() 解析、长度 ≤ 500
-  if (raw.llmBaseUrl !== undefined) {
-    if (typeof raw.llmBaseUrl !== "string") {
-      return { ok: false, error: COPY.settings.errInvalidType };
-    }
-    const baseUrl = raw.llmBaseUrl.trim();
-    if (baseUrl !== "") {
-      if (!/^https?:\/\//.test(baseUrl)) {
-        return { ok: false, error: COPY.settings.errBaseUrlFormat };
-      }
-      try {
-        new URL(baseUrl);
-      } catch {
-        return { ok: false, error: COPY.settings.errBaseUrlFormat };
-      }
-      if (baseUrl.length > LLM_SETTINGS_LIMITS.baseUrlMax) {
-        return { ok: false, error: COPY.settings.errBaseUrlTooLong };
-      }
-    }
-    value.llmBaseUrl = baseUrl;
+  for (const [key, kind] of FIELD_RULES) {
+    const input = raw[key];
+    if (input === undefined) continue; // 键不存在 = 保持不变
+    const result = sanitizeField(kind, input);
+    if (!result.ok) return result;
+    value[key] = result.value;
   }
-
-  // API Key：undefined=保持现有；""=清除用户 key；非空 trim 后长度 8-500
-  if (raw.llmApiKey !== undefined) {
-    if (typeof raw.llmApiKey !== "string") {
-      return { ok: false, error: COPY.settings.errInvalidType };
-    }
-    const apiKey = raw.llmApiKey.trim();
-    if (
-      apiKey !== "" &&
-      (apiKey.length < LLM_SETTINGS_LIMITS.apiKeyMin ||
-        apiKey.length > LLM_SETTINGS_LIMITS.apiKeyMax)
-    ) {
-      return { ok: false, error: COPY.settings.errApiKeyLength };
-    }
-    value.llmApiKey = apiKey;
-  }
-
-  // 模型名：undefined=保持；""=清除；非空 trim 后长度 ≤ 200
-  for (const field of ["llmChatModel", "llmEvalModel"] as const) {
-    if (raw[field] === undefined) continue;
-    if (typeof raw[field] !== "string") {
-      return { ok: false, error: COPY.settings.errInvalidType };
-    }
-    const model = (raw[field] as string).trim();
-    if (model !== "" && model.length > LLM_SETTINGS_LIMITS.modelMax) {
-      return { ok: false, error: COPY.settings.errModelTooLong };
-    }
-    value[field] = model;
-  }
-
   return { ok: true, value };
 }

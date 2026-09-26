@@ -174,3 +174,39 @@ describe("settings/validateLlmSettingsInput（空串清除语义）", () => {
     expect(result).toEqual({ ok: true, value: { llmApiKey: "" } });
   });
 });
+
+describe("settings/validateLlmSettingsInput（ASR 字段）", () => {
+  it("ASR 三字段合法输入：trim 放行", () => {
+    const result = validateLlmSettingsInput({
+      asrBaseUrl: " https://asr.example.com/v1 ",
+      asrApiKey: " sk-asr-123456 ",
+      asrModel: " whisper-1 ",
+    });
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.value).toEqual({
+      asrBaseUrl: "https://asr.example.com/v1",
+      asrApiKey: "sk-asr-123456",
+      asrModel: "whisper-1",
+    });
+  });
+
+  it("ASR 字段部分提交：未提交字段不出现在 value", () => {
+    const result = validateLlmSettingsInput({ asrModel: "whisper-1" });
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.value).toEqual({ asrModel: "whisper-1" });
+    expect("asrBaseUrl" in result.value).toBe(false);
+  });
+
+  it("ASR 空串 = 清除语义，原样放行空串", () => {
+    const result = validateLlmSettingsInput({ asrBaseUrl: "", asrApiKey: "", asrModel: "" });
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.value).toEqual({ asrBaseUrl: "", asrApiKey: "", asrModel: "" });
+  });
+
+  it("ASR 非法 URL / key 过短 / key 过长 → 报错（文案与 LLM 字段同源）", () => {
+    expect(validateLlmSettingsInput({ asrBaseUrl: "ftp://a.io" }).ok).toBe(false);
+    expect(validateLlmSettingsInput({ asrApiKey: "short" }).ok).toBe(false);
+    expect(validateLlmSettingsInput({ asrApiKey: "a".repeat(501) }).ok).toBe(false);
+    expect(validateLlmSettingsInput({ asrModel: "m".repeat(201) }).ok).toBe(false);
+  });
+});
