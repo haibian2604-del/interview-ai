@@ -5,25 +5,12 @@ import { getModel } from "@/lib/ai/provider";
 import { resolveConfig, type LlmConfig, type UserLlmSettings } from "@/lib/settings/service";
 import { encryptSecret } from "@/lib/settings/crypto";
 import { optionalEnv } from "@/lib/env";
+import { scrubSummary, draftOverride } from "@/lib/api/scrub";
 import { COPY } from "@/lib/copy";
 
 export const maxDuration = 60;
 
 type TestDraftBody = { llmBaseUrl?: unknown; llmApiKey?: unknown; llmChatModel?: unknown };
-
-/** 草稿字段：仅「非空字符串」覆盖已存配置；未传 / 空串 / 非字符串均视同未覆盖 */
-function draftOverride(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
-}
-
-/** 错误摘要：截断 + 抹去一切 key 形态（明文 key 绝不进响应体/日志的红线兜底） */
-function scrubSummary(message: string, secrets: (string | undefined)[]): string {
-  let out = message;
-  for (const secret of secrets) {
-    if (secret) out = out.split(secret).join("***");
-  }
-  return out.slice(0, 300);
-}
 
 export async function POST(request: Request) {
   let user;

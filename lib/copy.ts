@@ -280,7 +280,6 @@ export const COPY = {
     asrModelPlaceholder: "如 whisper-1",
     asrModelFallbackHint: "留空则使用系统默认（ASR_MODEL）；系统也未配置时语音作答不可用。",
     clearAsrKeyButton: "清除已存语音密钥",
-    clearAsrKeyTitle: "清除已存语音密钥",
     clearAsrKeyConfirm: "将删除已登记的语音识别密钥（加密形式），清除后按回落链取用系统配置。确定清除？",
     testAsrButton: "测试转写",
     testingAsr: "转写测试中…",

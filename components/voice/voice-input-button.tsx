@@ -55,13 +55,12 @@ export function VoiceInputButton({
     );
   }
   return (
-    // 孤儿录音流缓解：非 idle 态（含转写残留）时不给再起一路录音的机会
     <Button
       type="button"
       variant="outline"
       size="sm"
       className="rounded-none border-ink/25 text-ink/60 hover:text-ink"
-      disabled={disabled || state !== "idle"}
+      disabled={disabled}
       onClick={onToggle}
     >
       {copy.startRecording}

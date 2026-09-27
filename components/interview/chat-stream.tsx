@@ -557,7 +557,7 @@ export function ChatStream(props: ChatStreamProps) {
                 <VoiceInputButton
                   state={voice.state}
                   elapsedSeconds={voice.elapsedSeconds}
-                  disabled={inputDisabled || voice.state !== "idle"}
+                  disabled={inputDisabled}
                   onToggle={voice.toggle}
                   onCancel={voice.cancel}
                 />

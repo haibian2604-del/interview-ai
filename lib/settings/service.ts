@@ -175,6 +175,24 @@ export function collectAsrEnv(): AsrEnv {
   };
 }
 
+/** user_settings 行 → resolveAsrConfig 的 user 形状（getAsrConfig 与 test-asr 草稿覆盖共用）。
+ * 行缺失返回全 null 形状——resolveAsrConfig 对全 null 与 null user 判定一致（未配置）。 */
+export function mapAsrUserRow(settings: {
+  asr_base_url: string | null;
+  asr_api_key_enc: string | null;
+  asr_model: string | null;
+  llm_base_url: string | null;
+  llm_api_key_enc: string | null;
+} | null): UserAsrSettings & { llmBaseUrl: string | null; llmApiKeyEnc: string | null } {
+  return {
+    asrBaseUrl: settings?.asr_base_url ?? null,
+    asrApiKeyEnc: settings?.asr_api_key_enc ?? null,
+    asrModel: settings?.asr_model ?? null,
+    llmBaseUrl: settings?.llm_base_url ?? null,
+    llmApiKeyEnc: settings?.llm_api_key_enc ?? null,
+  };
+}
+
 export async function getAsrConfig(userId: string): Promise<AsrConfig | null> {
   const supabase = await createSupabaseServerClient();
   const { data: settings, error } = await supabase
@@ -188,16 +206,5 @@ export async function getAsrConfig(userId: string): Promise<AsrConfig | null> {
   }
 
   // snake_case 列 → camelCase 形状后交给纯函数（映射铁律）
-  return resolveAsrConfig({
-    user: settings
-      ? {
-          asrBaseUrl: settings.asr_base_url,
-          asrApiKeyEnc: settings.asr_api_key_enc,
-          asrModel: settings.asr_model,
-          llmBaseUrl: settings.llm_base_url,
-          llmApiKeyEnc: settings.llm_api_key_enc,
-        }
-      : null,
-    env: collectAsrEnv(),
-  });
+  return resolveAsrConfig({ user: mapAsrUserRow(settings ?? null), env: collectAsrEnv() });
 }

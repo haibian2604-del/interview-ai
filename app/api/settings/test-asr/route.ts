@@ -1,26 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
-import { collectAsrEnv, resolveAsrConfig } from "@/lib/settings/service";
+import { collectAsrEnv, mapAsrUserRow, resolveAsrConfig } from "@/lib/settings/service";
 import { buildTranscriptionRequest, extractTranscriptionText, probeWavBytes } from "@/lib/voice/transcribe";
+import { scrubSummary, draftOverride } from "@/lib/api/scrub";
 import { COPY } from "@/lib/copy";
 
 export const maxDuration = 60;
 
 type TestAsrDraft = { asrBaseUrl?: unknown; asrApiKey?: unknown; asrModel?: unknown };
-
-/** 草稿字段：仅「非空字符串」覆盖已存配置；未传/空串/非字符串均视同未覆盖 */
-function draftOverride(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
-}
-
-/** 错误摘要：截断 + 抹去一切 key 形态（明文 key 绝不进响应体/日志的红线兜底） */
-function scrubSummary(message: string, secrets: (string | undefined)[]): string {
-  let out = message;
-  for (const secret of secrets) {
-    if (secret) out = out.split(secret).join("***");
-  }
-  return out.slice(0, 300);
-}
 
 export async function POST(request: Request) {
   let user;
@@ -57,11 +44,9 @@ export async function POST(request: Request) {
   const draftKey = draftOverride(body.asrApiKey);
   const cfg = resolveAsrConfig({
     user: {
+      ...mapAsrUserRow(settings ?? null),
       asrBaseUrl: draftOverride(body.asrBaseUrl) ?? settings?.asr_base_url ?? null,
-      asrApiKeyEnc: settings?.asr_api_key_enc ?? null,
       asrModel: draftOverride(body.asrModel) ?? settings?.asr_model ?? null,
-      llmBaseUrl: settings?.llm_base_url ?? null,
-      llmApiKeyEnc: settings?.llm_api_key_enc ?? null,
     },
     env: collectAsrEnv(),
     overrideKey: draftKey,

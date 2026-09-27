@@ -7,18 +7,10 @@ import {
   validateAudioUpload,
 } from "@/lib/voice/transcribe";
 import { serverErrorResponse } from "@/lib/api/server-error";
+import { scrubSummary } from "@/lib/api/scrub";
 import { COPY } from "@/lib/copy";
 
 export const maxDuration = 60;
-
-/** 错误摘要：截断 + 抹去 key 形态（先例同 settings/test-asr；明文 key 绝不进日志） */
-function scrubSummary(message: string, secrets: (string | undefined)[]): string {
-  let out = message;
-  for (const secret of secrets) {
-    if (secret) out = out.split(secret).join("***");
-  }
-  return out.slice(0, 300);
-}
 
 /**
  * 语音作答转写（纯转发）：音频只在内存过路，服务端不落盘、不记录内容；
@@ -39,7 +31,8 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: COPY.voice.errNoAudio }, { status: 400 });
   }
-  const guard = validateAudioUpload(form.get("audio"));
+  const audio = form.get("audio");
+  const guard = validateAudioUpload(audio);
   if (guard) {
     // 无有效音频 / 超 4MB 统一 400（413 语义放弃：Vercel 平台层会拦截，统一文案更可控）
     return NextResponse.json({ error: guard }, { status: 400 });
@@ -51,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { url, init } = buildTranscriptionRequest(cfg, form.get("audio") as Blob);
+    const { url, init } = buildTranscriptionRequest(cfg, audio as Blob);
     const res = await fetch(url, init);
     if (!res.ok) {
       const raw = await res.text().catch(() => "");

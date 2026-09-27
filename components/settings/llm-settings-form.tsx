@@ -516,16 +516,16 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         onOpenChange={setClearConfirmOpen}
         title={copy.clearKeyTitle}
         description={copy.clearKeyConfirm}
-        confirmLabel={copy.clearKeyButton ?? COPY.common.dialogOk}
+        confirmLabel={copy.clearKeyButton}
         destructive
         onConfirm={() => void clearKey()}
       />
       <ConfirmDialog
         open={clearAsrConfirmOpen}
         onOpenChange={setClearAsrConfirmOpen}
-        title={copy.clearAsrKeyTitle}
+        title={copy.clearAsrKeyButton}
         description={copy.clearAsrKeyConfirm}
-        confirmLabel={copy.clearAsrKeyButton ?? COPY.common.dialogOk}
+        confirmLabel={copy.clearAsrKeyButton}
         destructive
         onConfirm={() => void clearAsrKey()}
       />

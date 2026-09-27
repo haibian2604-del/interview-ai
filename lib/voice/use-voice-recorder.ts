@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { COPY } from "@/lib/copy";
-import {
-  VOICE_MAX_SECONDS,
-  formatElapsed,
-  pickRecorderMime,
-  supportsVoiceInput,
-} from "@/lib/voice/recorder-core";
+import { VOICE_MAX_SECONDS, pickRecorderMime, supportsVoiceInput } from "@/lib/voice/recorder-core";
 
 export type VoiceRecorderState = "idle" | "recording" | "transcribing";
 
@@ -173,5 +168,5 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
     stopRecording();
   }, [state, stopRecording]);
 
-  return { state, elapsedSeconds, supportsVoice, toggle, cancel, formatElapsed };
+  return { state, elapsedSeconds, supportsVoice, toggle, cancel };
 }
