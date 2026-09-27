@@ -305,6 +305,13 @@ export const COPY = {
     cancelRecording: "放弃",
     transcribing: "转写中……",
   },
+  /** 真实面试模式：现场接续出题的前端文案（Task 8 消费 earlyEndTemplate） */
+  realMode: {
+    loadingNext: "考官翻阅你的档案……",
+    nextFailed: "下一题生成失败",
+    retry: "继续",
+    earlyEndTemplate: "提前结束 · 实答 {n} 题",
+  },
   /** API 路由响应体错误文案的唯一来源：路由层不写中文硬编码 */
   api: {
     unauthorized: "未登录",

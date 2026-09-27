@@ -18,6 +18,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { VoiceInputButton } from "@/components/voice/voice-input-button";
 import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { COPY } from "@/lib/copy";
+import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 import type { ChatMessage, StampData } from "@/lib/interview/mappers";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
@@ -39,6 +40,7 @@ export type ChatStreamProps = {
   questions: { content: string; skillTag: string }[];
   initialStamps: Record<number, StampData>;
   initialFollowupIdxs: number[];
+  mode: "practice" | "real";
 };
 
 function parseScoresHeader(value: string | null): StampData | null {
@@ -133,11 +135,17 @@ const subscribeNever = () => () => {};
 const getMounted = () => true;
 const getServerMounted = () => false;
 
+// 生成下一题时的呼吸动画（「考官翻阅你的档案……」）。question-progress 的 BREATHE_CSS
+// 只在其组件渲染树内生效，ChatStream 自持一份同款（globals.css 只有 reduced-motion 覆盖）。
+const BREATHE_CSS = `
+@keyframes mirror-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.mirror-breathe { animation: mirror-breathe 1.6s ease-in-out infinite; }
+`;
+
 export function ChatStream(props: ChatStreamProps) {
   const copy = COPY.interview;
   const router = useRouter();
-  const { interviewId, questions } = props;
-  const questionCount = questions.length;
+  const { interviewId } = props;
 
   const [status, setStatus] = useState<InterviewStatus>(props.initialStatus);
   const [messages, setMessages] = useState<ChatMessage[]>(props.initialMessages);
@@ -145,10 +153,14 @@ export function ChatStream(props: ChatStreamProps) {
   const [liveStampIdxs, setLiveStampIdxs] = useState<number[]>([]);
   const [followupIdxs, setFollowupIdxs] = useState<number[]>(props.initialFollowupIdxs);
   const [currentIndex, setCurrentIndex] = useState(props.initialCurrentIndex);
+  // 真实面试下题目现场渐进而来：questions 从只读 prop 变为可追加的本地 state
+  const [questionList, setQuestionList] = useState(props.questions);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingGeneration, setPendingGeneration] = useState(false);
   const [abandonConfirmOpen, setAbandonConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextError, setNextError] = useState<string | null>(null);
 
   // SSR/水合首帧为 false，水合完成后 true（见上方 subscribeNever 注释）
   const voiceMounted = useSyncExternalStore(subscribeNever, getMounted, getServerMounted);
@@ -165,9 +177,17 @@ export function ChatStream(props: ChatStreamProps) {
   const isAbandoned = status === "abandoned";
   const isCompleted = status === "completed";
   const ended = isAbandoned || isCompleted;
-  const inputDisabled = busy || ended || status === "draft" || status === "generating";
-  const safeIndex = Math.min(currentIndex, Math.max(questionCount - 1, 0));
-  const currentQuestion = questions[safeIndex];
+  // 进度与答题卡用目标题量（real = REAL_MODE.target，practice = 已生成题数）
+  const targetCount = props.mode === "real" ? REAL_MODE.target : questionList.length;
+  // 派生信号：answer 已把 currentIndex 推进到「尚未生成的题」（>= 已生成题数），
+  // 这正是「需要现场生成下一题」的确定性判定（live 接续与刷新恢复共用）
+  const shouldGenerate =
+    props.mode === "real" && status === "in_progress" && currentIndex >= questionList.length && !ended;
+  const inputDisabled =
+    busy || ended || status === "draft" || status === "generating" || pendingGeneration;
+  // real 下允许指向尚未生成的题——此时 currentQuestion 为 undefined，题干区自动隐藏（即加载态）
+  const safeIndex = Math.min(currentIndex, Math.max(targetCount - 1, 0));
+  const currentQuestion = questionList[safeIndex];
 
   const nextLocalId = () => `local-${interviewId}-${++localIdRef.current}`;
 
@@ -269,6 +289,70 @@ export function ChatStream(props: ChatStreamProps) {
     }
   }
 
+  /** 真实面试：现场生成下一题并流式提问。409 = 已终结（拉状态收口）或竞态兜底。 */
+  async function fetchNextQuestion() {
+    setPendingGeneration(true);
+    setNextError(null);
+    try {
+      const res = await fetch(`/api/interview/${interviewId}/next-question`, { method: "POST" });
+      if (res.status === 409) {
+        const statusRes = await fetch(`/api/interview/${interviewId}/status`);
+        if (statusRes.ok) {
+          const s = (await statusRes.json()) as { status: InterviewStatus };
+          if (s.status === "completed") {
+            setStatus("completed");
+            window.setTimeout(() => router.push(`/report/${interviewId}`), 1600);
+            return;
+          }
+        }
+        setNextError(COPY.realMode.nextFailed);
+        return;
+      }
+      if (!res.ok) {
+        setNextError(COPY.realMode.nextFailed);
+        return;
+      }
+      const contentType = res.headers.get("Content-Type") ?? "";
+      const metaRaw = res.headers.get("X-Question-Meta");
+      // 注意：不能用 `as typeof parsedMeta` 自引用——let 在赋值点已被收窄为 null，
+      // typeof 查询随之解析为 null，下游全部塌缩成 never
+      let parsedMeta: { idx: number; skillTag: string; content: string } | null = null;
+      try {
+        parsedMeta = metaRaw
+          ? (JSON.parse(decodeURIComponent(metaRaw)) as { idx: number; skillTag: string; content: string })
+          : null;
+      } catch {
+        parsedMeta = null;
+      }
+      if (!parsedMeta) {
+        setNextError(COPY.realMode.nextFailed);
+        return;
+      }
+      const meta = parsedMeta;
+      if (contentType.includes("application/json")) {
+        // duplicate 兜底：题已存在（竞态/重试），补全列表即可，流已在库
+        setQuestionList((prev) =>
+          prev.length > meta.idx
+            ? prev
+            : [...prev, { content: meta.content, skillTag: meta.skillTag }],
+        );
+        setCurrentIndex(meta.idx);
+        return;
+      }
+      setQuestionList((prev) =>
+        prev.length > meta.idx
+          ? prev
+          : [...prev, { content: meta.content, skillTag: meta.skillTag }],
+      );
+      setCurrentIndex(meta.idx);
+      await streamIntoBubble(res, { questionIdx: meta.idx, isFollowupQuestion: false });
+    } catch {
+      setNextError(COPY.realMode.nextFailed);
+    } finally {
+      setPendingGeneration(false);
+    }
+  }
+
   // 挂载时：ready 自动开场；in_progress 且无历史消息（中断恢复）同样调 start（幂等）。
   // 定时器把首次 setState 移出 effect 主体（react-hooks/set-state-in-effect），
   // startedRef 兜住 StrictMode 双挂载导致的重复开场。
@@ -286,7 +370,22 @@ export function ChatStream(props: ChatStreamProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 真实面试自动接续：currentIndex 指向尚未生成的题即触发现场出题。
+  // nextStartedRef 兜住触发期间（题未入列前）依赖变化导致的重复发起。
+  const nextStartedRef = useRef(false);
+  useEffect(() => {
+    if (!shouldGenerate) return;
+    if (nextStartedRef.current) return;
+    nextStartedRef.current = true;
+    void fetchNextQuestion().finally(() => {
+      nextStartedRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldGenerate, props.mode, status, currentIndex, questionList.length]);
+
   async function submitAnswer() {
+    // 真实面试守卫：当前指向的题尚未生成时（生成失败/加载中）不允许作答
+    if (props.mode === "real" && !questionList[safeIndex]) return;
     const text = draft.trim();
     if (!text || inputDisabled) return;
     const answeredIdx = safeIndex;
@@ -443,11 +542,13 @@ export function ChatStream(props: ChatStreamProps) {
 
   return (
     <div className="flex min-h-0 w-full flex-1 gap-8">
+      {/* 呼吸动画样式：本组件加载态使用（question-progress 作用域外不可见） */}
+      <style>{BREATHE_CSS}</style>
       {/* 左栏（桌面）：答题卡 + 放弃面试 */}
       <aside className="hidden w-64 shrink-0 flex-col gap-6 lg:flex">
         <QuestionProgress
           currentIndex={safeIndex}
-          questionCount={questionCount}
+          questionCount={targetCount}
           skillTag={currentQuestion?.skillTag ?? null}
           followupIdxs={followupIdxs}
           frozen={ended}
@@ -461,10 +562,10 @@ export function ChatStream(props: ChatStreamProps) {
         {/* 移动端降级：左栏折叠为顶部进度条 */}
         <div className="mb-5 flex items-center gap-4 border-b border-ink/15 pb-4 lg:hidden">
           <p className="shrink-0 font-heading text-lg font-semibold tabular-nums">
-            {copy.questionLabelPrefix} {safeIndex + 1} / {questionCount}
+            {copy.questionLabelPrefix} {safeIndex + 1} / {targetCount}
           </p>
           <Progress
-            value={questionCount > 0 ? ((isCompleted ? questionCount : safeIndex) / questionCount) * 100 : 0}
+            value={targetCount > 0 ? ((isCompleted ? targetCount : safeIndex) / targetCount) * 100 : 0}
             aria-label={copy.progressTitle}
             className="flex-1"
           />
@@ -519,6 +620,26 @@ export function ChatStream(props: ChatStreamProps) {
           className="min-h-0 flex-1 space-y-6 overflow-y-auto py-6 pr-1"
         >
           {renderFlow()}
+          {pendingGeneration && (
+            <li className="flex justify-center py-4">
+              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-ink-blue">
+                {COPY.realMode.loadingNext}
+              </p>
+            </li>
+          )}
+          {nextError && (
+            <li className="flex justify-center py-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-none border-ink/25 text-ink/60 hover:text-ink"
+                onClick={() => void fetchNextQuestion()}
+              >
+                {COPY.realMode.retry}
+              </Button>
+            </li>
+          )}
           {isCompleted && (
             <li className="flex justify-center pt-4">
               <div className="mirror-stamp-in border border-ink px-10 py-6 text-center">
