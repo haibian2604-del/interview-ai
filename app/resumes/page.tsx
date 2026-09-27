@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,15 +10,25 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
-import { resumeDigest, resumeProfilePreview } from "@/lib/resume/profile-preview";
+import { resumeDigest, resumeProfilePreview, resumeRawExcerpt } from "@/lib/resume/profile-preview";
 
 type ResumeRow = {
   id: string;
   created_at: string;
   storage_path: string | null;
   structured_json: unknown;
+  raw_text: string | null;
   name: string | null;
 };
+
+// 画像后台预热：上传/粘贴成功后即触发，不阻塞页面；失败静默——展开简历时会兜底重试
+function triggerProfileGeneration(resumeId: string) {
+  void fetch("/api/resume/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resumeId }),
+  }).catch(() => {});
+}
 
 // 归档日期：等宽表格数字，印刷品节奏
 function formatDate(iso: string) {
@@ -76,7 +86,9 @@ function NewArchiveCard({
         );
         return;
       }
+      const data = (await res.json()) as { resumeId: string };
       reset();
+      triggerProfileGeneration(data.resumeId);
       onCreated(COPY.resumes.successNote);
       router.refresh();
     } catch {
@@ -96,19 +108,22 @@ function NewArchiveCard({
     setBusy(true);
     setError(null);
     try {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
         setError(COPY.resumes.pasteFailed);
         return;
       }
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from("resumes")
-        .insert({ user_id: data.user.id, raw_text: text, name: name.trim() || null });
-      if (insertError) {
+        .insert({ user_id: auth.user.id, raw_text: text, name: name.trim() || null })
+        .select("id")
+        .single();
+      if (insertError || !data) {
         setError(COPY.resumes.pasteFailed);
         return;
       }
       reset();
+      triggerProfileGeneration(data.id);
       onCreated(COPY.resumes.successNote);
       router.refresh();
     } catch {
@@ -219,10 +234,59 @@ function ResumeCard({
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [renameBusy, setRenameBusy] = useState(false);
-  // B12：画像已结构化的档案展示摘要 + 考察点，未结构化的维持「画像待生成」占位
-  const profile = resumeProfilePreview(resume.structured_json);
-  // 简历缩略（常显）：画像 summary 优先，raw_text 摘录兜底——不看展开就能知道档案大概内容
-  const digest = resumeDigest(resume);
+  // 画像后台生成：liveProfile 为本次会话生成成功的覆盖值（props 里的 structured_json 要刷新页面才有）；
+  // busy/failed 驱动「生成中 / 失败+重试」两个状态；generatingRef 挡住同卡片的重复请求
+  const [liveProfile, setLiveProfile] = useState<unknown>(null);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileFailed, setProfileFailed] = useState(false);
+  const generatingRef = useRef(false);
+  // 原文区形态：默认摘录，「查看全文」切换限高滚动框
+  const [fullText, setFullText] = useState(false);
+  // 画像层（叠加）：已生成展示摘要+考察点；未生成有生成中/失败态，原文区不受其影响
+  const profile = resumeProfilePreview(liveProfile ?? resume.structured_json);
+  // 简历缩略（收起时常显）：画像 summary 优先，raw_text 摘录兜底
+  const digest = resumeDigest({
+    structured_json: liveProfile ?? resume.structured_json,
+    raw_text: resume.raw_text,
+  });
+  const rawExcerpt = resumeRawExcerpt(resume.raw_text);
+
+  // 幂等端点：已生成直接返回；展开兜底与上传预热并发时靠 generatingRef 去重
+  async function ensureProfile() {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    setProfileBusy(true);
+    setProfileFailed(false);
+    try {
+      const res = await fetch("/api/resume/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId: resume.id }),
+      });
+      if (!res.ok) {
+        setProfileFailed(true);
+        return;
+      }
+      const data = (await res.json()) as { profile?: unknown };
+      if (data.profile) {
+        setLiveProfile(data.profile);
+      } else {
+        setProfileFailed(true);
+      }
+    } catch {
+      setProfileFailed(true);
+    } finally {
+      generatingRef.current = false;
+      setProfileBusy(false);
+    }
+  }
+
+  function toggleExpanded() {
+    const next = !expanded;
+    setExpanded(next);
+    // 展开时画像还没生成（含存量旧档案）→ 就地兜底触发，生成完原地刷新
+    if (next && !profile) void ensureProfile();
+  }
 
   async function saveName() {
     if (renameBusy) return;
@@ -338,7 +402,7 @@ function ResumeCard({
           {COPY.resumes.dateLabel} {formatDate(resume.created_at)}
         </span>
       </div>
-      {digest && (
+      {digest && !expanded && (
         <p className="border-b border-ink/15 px-5 py-3 text-xs leading-5 text-pencil line-clamp-2">
           {digest}
         </p>
@@ -346,40 +410,76 @@ function ResumeCard({
       <div className="px-5 py-4">
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={toggleExpanded}
           className="text-sm text-ink/70 underline decoration-ink/30 underline-offset-4 hover:text-ink"
         >
           {expanded ? COPY.resumes.profileCollapse : COPY.resumes.profileExpand} ·{" "}
           {COPY.resumes.profileLabel}
         </button>
         {expanded && (
-          profile ? (
-            <div className="mt-3 border-l-2 border-ink/20 pl-4">
-              <p className="text-sm leading-6 text-ink/80">
-                {profile.summary}
-                {profile.truncated ? "……" : ""}
+          <div className="mt-3 space-y-4">
+            {/* 画像层（叠加）：LLM 结构化摘要+考察点；生成中/失败就地反馈，失败可重试 */}
+            {profile ? (
+              <div className="border-l-2 border-ink/20 pl-4">
+                <p className="text-sm leading-6 text-ink/80">
+                  {profile.summary}
+                  {profile.truncated ? "……" : ""}
+                </p>
+                {profile.skills.length > 0 && (
+                  <ul
+                    aria-label={COPY.interview.skillTagLabel}
+                    className="mt-3 flex flex-wrap gap-1.5"
+                  >
+                    {profile.skills.map((skill) => (
+                      <li
+                        key={skill}
+                        className="border border-ink/20 px-2 py-0.5 font-mono text-xs text-ink/70"
+                      >
+                        {skill}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : profileBusy ? (
+              <p className="border-l-2 border-ink/20 pl-4 text-sm leading-6 text-pencil">
+                {COPY.resumes.profileGenerating}
               </p>
-              {profile.skills.length > 0 && (
-                <ul
-                  aria-label={COPY.interview.skillTagLabel}
-                  className="mt-3 flex flex-wrap gap-1.5"
+            ) : profileFailed ? (
+              <p className="flex items-center gap-3 border-l-2 border-ink/20 pl-4 text-sm leading-6 text-pencil">
+                {COPY.resumes.profileFailed}
+                <button
+                  type="button"
+                  className="font-mono text-xs text-ink/70 underline decoration-ink/30 underline-offset-4 hover:text-ink"
+                  onClick={() => void ensureProfile()}
                 >
-                  {profile.skills.map((skill) => (
-                    <li
-                      key={skill}
-                      className="border border-ink/20 px-2 py-0.5 font-mono text-xs text-ink/70"
-                    >
-                      {skill}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <p className="mt-3 border-l-2 border-ink/20 pl-4 text-sm leading-6 text-pencil">
-              {COPY.resumes.profilePending}
-            </p>
-          )
+                  {COPY.resumes.profileRetry}
+                </button>
+              </p>
+            ) : null}
+            {/* 原文区（常显）：摘录默认，全文限高滚动按需——展示简历内容的主力 */}
+            {rawExcerpt.text && (
+              <div className="border-l-2 border-ink/20 pl-4">
+                {fullText ? (
+                  <div className="max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-ink/80">
+                    {resume.raw_text}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-ink/80">
+                    {rawExcerpt.text}
+                    {rawExcerpt.truncated ? "……" : ""}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFullText((v) => !v)}
+                  className="mt-2 font-mono text-xs text-pencil underline decoration-ink/20 underline-offset-4 hover:text-ink"
+                >
+                  {fullText ? COPY.resumes.rawCollapse : COPY.resumes.rawFull}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <div className="flex justify-end border-t border-ink/15 px-5 py-3">

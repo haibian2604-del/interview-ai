@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resumeProfilePreview } from "@/lib/resume/profile-preview";
+import { resumeProfilePreview, resumeRawExcerpt } from "@/lib/resume/profile-preview";
 
 describe("resumeProfilePreview", () => {
   it("从合法 structured_json 提取摘要与 skills 前 6 个", () => {
@@ -44,5 +44,33 @@ describe("resumeProfilePreview", () => {
     expect(resumeProfilePreview({})).toBeNull();
     expect(resumeProfilePreview({ summary: 123, skills: [] })).toBeNull();
     expect(resumeProfilePreview({ summary: "ok" })).toBeNull();
+  });
+});
+
+describe("resumeRawExcerpt", () => {
+  it("null / undefined / 空白输入：空摘录且不标记截断", () => {
+    expect(resumeRawExcerpt(null)).toEqual({ text: "", truncated: false });
+    expect(resumeRawExcerpt(undefined)).toEqual({ text: "", truncated: false });
+    expect(resumeRawExcerpt("  \n\t ")).toEqual({ text: "", truncated: false });
+  });
+
+  it("空白归一：换行与连续空格折叠为单空格", () => {
+    const view = resumeRawExcerpt("张三\n  后端工程师\t\n八年经验");
+    expect(view.text).toBe("张三 后端工程师 八年经验");
+    expect(view.truncated).toBe(false);
+  });
+
+  it("恰好等于 limit：不截断；超一字：截断并标记", () => {
+    const exact = resumeRawExcerpt("字".repeat(400));
+    expect(exact.text).toHaveLength(400);
+    expect(exact.truncated).toBe(false);
+    const over = resumeRawExcerpt("字".repeat(401));
+    expect(over.text).toHaveLength(400);
+    expect(over.truncated).toBe(true);
+  });
+
+  it("自定义 limit 生效", () => {
+    const view = resumeRawExcerpt("abcdefghij", 5);
+    expect(view).toEqual({ text: "abcde", truncated: true });
   });
 });

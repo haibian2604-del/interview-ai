@@ -26,6 +26,20 @@ export function resumeProfilePreview(structuredJson: unknown): ResumeProfilePrev
 }
 
 /**
+ * 简历原文摘录视图（展开区默认态）：空白归一后截前 limit 字，
+ * 配 truncated 标记供客户端补省略号。全文展示不用这里（保留原排版）。
+ */
+export type ResumeRawExcerpt = { text: string; truncated: boolean };
+
+export function resumeRawExcerpt(
+  rawText: string | null | undefined,
+  limit = 400,
+): ResumeRawExcerpt {
+  const flat = (rawText ?? "").replace(/\s+/g, " ").trim();
+  return { text: flat.slice(0, limit), truncated: flat.length > limit };
+}
+
+/**
  * 简历缩略：让用户一眼知道这份档案大概是什么。
  * 画像已生成用 summary；否则从 raw_text 摘前 80 个非空白字符兜底
  * （未跑过画像分析的档案也有内容可看）。两者皆无 → null（显示占位）。
