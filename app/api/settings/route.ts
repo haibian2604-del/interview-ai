@@ -5,6 +5,11 @@ import { encryptSecret } from "@/lib/settings/crypto";
 import { validateLlmSettingsInput } from "@/lib/settings/validation";
 import { COPY } from "@/lib/copy";
 
+/** key 列写入值：空串 = 清除（回落链顶上），非空 = 加密覆盖 */
+function encryptOrClear(value: string): string {
+  return value === "" ? "" : encryptSecret(value);
+}
+
 export async function GET() {
   // /api/* 不在 middleware 的 PROTECTED 名单内，这里自己兜住未登录（先例同 /api/resume/parse）
   let user;
@@ -47,31 +52,25 @@ export async function PUT(request: Request) {
     updated_at: new Date().toISOString(),
   };
   if (fields.llmBaseUrl !== undefined) record.llm_base_url = fields.llmBaseUrl;
-  if (fields.llmApiKey !== undefined) {
-    // 空串 = 清除用户 key（回落 env）；非空 = 加密覆盖。
-    // 加密发生在任何写库动作之前：无 SETTINGS_SECRET 时此处抛错 → 500，不落半成品。
-    try {
-      record.llm_api_key_enc =
-        fields.llmApiKey === "" ? "" : encryptSecret(fields.llmApiKey);
-    } catch (e) {
-      console.error("[settings] encrypt api key failed:", e);
-      return NextResponse.json({ error: COPY.settings.saveFailed }, { status: 500 });
-    }
-  }
   if (fields.llmChatModel !== undefined) record.llm_chat_model = fields.llmChatModel;
   if (fields.llmEvalModel !== undefined) record.llm_eval_model = fields.llmEvalModel;
   if (fields.asrBaseUrl !== undefined) record.asr_base_url = fields.asrBaseUrl;
-  if (fields.asrApiKey !== undefined) {
-    // 空串 = 清除用户 ASR key（回落链自动顶上）；非空 = AES-GCM 加密覆盖
-    // 加密发生在任何写库动作之前：无 SETTINGS_SECRET 时此处抛错 → 500，不落半成品
+  if (fields.asrModel !== undefined) record.asr_model = fields.asrModel;
+  // LLM/ASR key 同语义：空串 = 清除（回落链自动顶上）；非空 = AES-GCM 加密覆盖。
+  // 加密发生在任何写库动作之前：无 SETTINGS_SECRET 时此处抛错 → 500，不落半成品。
+  if (fields.llmApiKey !== undefined || fields.asrApiKey !== undefined) {
     try {
-      record.asr_api_key_enc = fields.asrApiKey === "" ? "" : encryptSecret(fields.asrApiKey);
+      if (fields.llmApiKey !== undefined) {
+        record.llm_api_key_enc = encryptOrClear(fields.llmApiKey);
+      }
+      if (fields.asrApiKey !== undefined) {
+        record.asr_api_key_enc = encryptOrClear(fields.asrApiKey);
+      }
     } catch (e) {
-      console.error("[settings] encrypt asr key failed:", e);
+      console.error("[settings] encrypt key failed:", e);
       return NextResponse.json({ error: COPY.settings.saveFailed }, { status: 500 });
     }
   }
-  if (fields.asrModel !== undefined) record.asr_model = fields.asrModel;
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("user_settings").upsert(record);

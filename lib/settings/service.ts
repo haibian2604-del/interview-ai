@@ -87,15 +87,39 @@ export async function getLlmConfig(userId: string): Promise<LlmConfig> {
 /** 供 /api/settings GET 返回掩码形态；解密后的明文永不离开服务端 */
 export async function getMaskedLlmSettings(userId: string) {
   const supabase = await createSupabaseServerClient();
-  const { data: settings, error } = await supabase
+  // 0003 未应用（asr_* 列不存在）时合并 select 整体失败——若直接视同未配置，
+  // LLM 掩码也丢失且「保存」会以空串清掉已存 LLM 字段。先试全列，失败回退仅 LLM 列。
+  const full = await supabase
     .from("user_settings")
     .select(
       "llm_base_url, llm_api_key_enc, llm_chat_model, llm_eval_model, asr_base_url, asr_api_key_enc, asr_model",
     )
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) {
-    console.error("[settings] load user_settings failed, treat as unconfigured:", error.message);
+  let settings = full.data as
+    | {
+        llm_base_url: string | null;
+        llm_api_key_enc: string | null;
+        llm_chat_model: string | null;
+        llm_eval_model: string | null;
+        asr_base_url?: string | null;
+        asr_api_key_enc?: string | null;
+        asr_model?: string | null;
+      }
+    | null;
+  if (full.error) {
+    console.error("[settings] load user_settings(full) failed, retry LLM-only:", full.error.message);
+    const llmOnly = await supabase
+      .from("user_settings")
+      .select("llm_base_url, llm_api_key_enc, llm_chat_model, llm_eval_model")
+      .eq("user_id", userId)
+      .maybeSingle();
+    // 回退查询也失败（如 0002 未应用）才真正视同未配置。
+    // 回退行没有 asr 列（asr_* 为 undefined），?? 兜底后语义 = ASR 未配置。
+    settings = llmOnly.data;
+    if (llmOnly.error) {
+      console.error("[settings] load user_settings(llm-only) failed, treat as unconfigured:", llmOnly.error.message);
+    }
   }
   const hasKey = !!settings?.llm_api_key_enc;
   // 解密失败（如 SETTINGS_SECRET 轮换）时 keyMask 返回空串：设置页据此显示「请重新填写」红墨批注

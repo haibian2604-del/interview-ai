@@ -22,6 +22,8 @@ type UseVoiceRecorderOpts = {
 export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // getUserMedia 授权等待窗口的 UI 反馈态（与 startingRef 守卫同步置位）
+  const [starting, setStarting] = useState(false);
   const [supportsVoice] = useState(() =>
     typeof window === "undefined"
       ? false
@@ -153,11 +155,14 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
 
   const toggle = useCallback(() => {
     if (state === "idle") {
-      // 授权等待窗口内二连点会起两路 getUserMedia（孤儿流），startingRef 兜住
+      // 授权等待窗口内二连点会起两路 getUserMedia（孤儿流），startingRef 兜住；
+      // starting state 同步给 UI 显示「连接中」反馈
       if (startingRef.current) return;
       startingRef.current = true;
+      setStarting(true);
       void startRecording().finally(() => {
         startingRef.current = false;
+        setStarting(false);
       });
     } else if (state === "recording") stopRecording();
   }, [state, startRecording, stopRecording]);
@@ -168,5 +173,5 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
     stopRecording();
   }, [state, stopRecording]);
 
-  return { state, elapsedSeconds, supportsVoice, toggle, cancel };
+  return { state, elapsedSeconds, starting, supportsVoice, toggle, cancel };
 }

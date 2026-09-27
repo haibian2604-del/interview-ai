@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { COPY } from "@/lib/copy";
 import {
-  LLM_SETTINGS_LIMITS,
+  SETTINGS_FIELD_LIMITS,
   validateLlmSettingsInput,
 } from "@/lib/settings/validation";
 
@@ -51,8 +51,8 @@ describe("settings/validateLlmSettingsInput（合法输入）", () => {
   });
 
   it("边界长度：URL 500 / key 8 / 模型 200 恰好放行", () => {
-    const urlOk = "https://a.io/" + "a".repeat(LLM_SETTINGS_LIMITS.baseUrlMax - "https://a.io/".length);
-    expect(urlOk).toHaveLength(LLM_SETTINGS_LIMITS.baseUrlMax);
+    const urlOk = "https://a.io/" + "a".repeat(SETTINGS_FIELD_LIMITS.baseUrlMax - "https://a.io/".length);
+    expect(urlOk).toHaveLength(SETTINGS_FIELD_LIMITS.baseUrlMax);
     expect(validateLlmSettingsInput({ llmBaseUrl: urlOk })).toEqual({
       ok: true,
       value: { llmBaseUrl: urlOk },
@@ -115,7 +115,7 @@ describe("settings/validateLlmSettingsInput（非法输入）", () => {
   it("超长：URL 501 / key 501 / 模型 201，各自 errXxxTooLong / errApiKeyLength", () => {
     const urlTooLong =
       "https://a.io/" +
-      "a".repeat(LLM_SETTINGS_LIMITS.baseUrlMax - "https://a.io/".length + 1);
+      "a".repeat(SETTINGS_FIELD_LIMITS.baseUrlMax - "https://a.io/".length + 1);
     expect(validateLlmSettingsInput({ llmBaseUrl: urlTooLong })).toEqual({
       ok: false,
       error: COPY.settings.errBaseUrlTooLong,

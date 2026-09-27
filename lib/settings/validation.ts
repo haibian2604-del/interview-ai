@@ -31,7 +31,7 @@ export type ValidateLlmSettingsResult =
   | { ok: true; value: SanitizedLlmSettings }
   | { ok: false; error: string };
 
-export const LLM_SETTINGS_LIMITS = {
+export const SETTINGS_FIELD_LIMITS = {
   baseUrlMax: 500,
   apiKeyMin: 8,
   apiKeyMax: 500,
@@ -55,18 +55,18 @@ function sanitizeField(kind: FieldKind, raw: unknown): { ok: true; value: string
     } catch {
       return { ok: false, error: COPY.settings.errBaseUrlFormat };
     }
-    if (value.length > LLM_SETTINGS_LIMITS.baseUrlMax) {
+    if (value.length > SETTINGS_FIELD_LIMITS.baseUrlMax) {
       return { ok: false, error: COPY.settings.errBaseUrlTooLong };
     }
   } else if (kind === "key") {
     // 非空 trim 后长度 8-500
-    if (value.length < LLM_SETTINGS_LIMITS.apiKeyMin) {
+    if (value.length < SETTINGS_FIELD_LIMITS.apiKeyMin) {
       return { ok: false, error: COPY.settings.errApiKeyLength };
     }
-    if (value.length > LLM_SETTINGS_LIMITS.apiKeyMax) {
+    if (value.length > SETTINGS_FIELD_LIMITS.apiKeyMax) {
       return { ok: false, error: COPY.settings.errApiKeyLength };
     }
-  } else if (value.length > LLM_SETTINGS_LIMITS.modelMax) {
+  } else if (value.length > SETTINGS_FIELD_LIMITS.modelMax) {
     return { ok: false, error: COPY.settings.errModelTooLong };
   }
   return { ok: true, value };

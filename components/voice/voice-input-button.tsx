@@ -8,12 +8,15 @@ import type { VoiceRecorderState } from "@/lib/voice/use-voice-recorder";
 export function VoiceInputButton({
   state,
   elapsedSeconds,
+  starting = false,
   disabled,
   onToggle,
   onCancel,
 }: {
   state: VoiceRecorderState;
   elapsedSeconds: number;
+  /** getUserMedia 授权等待中：按钮转「连接中」禁用态 */
+  starting?: boolean;
   disabled: boolean;
   onToggle: () => void;
   onCancel: () => void;
@@ -52,6 +55,13 @@ export function VoiceInputButton({
           {copy.cancelRecording}
         </Button>
       </span>
+    );
+  }
+  if (starting) {
+    return (
+      <Button type="button" variant="outline" size="sm" className="rounded-none" disabled>
+        {copy.connecting}
+      </Button>
     );
   }
   return (

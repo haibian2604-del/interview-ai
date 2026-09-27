@@ -265,7 +265,9 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
       if (payload?.ok && payload.model) {
         setTestAsrOk(copy.testAsrOkTemplate.replace("{model}", payload.model));
       } else {
-        setTestAsrError(copy.testFailedPrefix + (payload?.error ?? copy.testBroken));
+        // 「未配置」是引导性文案而非失败：免加「连接失败：」前缀，避免双重语义
+        const msg = payload?.error ?? copy.testBroken;
+        setTestAsrError(msg === COPY.voice.notConfigured ? msg : copy.testFailedPrefix + msg);
       }
     } catch {
       setTestAsrError(copy.testFailedPrefix + copy.testBroken);

@@ -295,6 +295,7 @@ export const COPY = {
     micDenied: "麦克风权限被拒绝：请在浏览器地址栏允许麦克风后重试",
     recordingMax: "已达单次录音上限（3 分钟），自动进入转写",
     startRecording: "语音作答",
+    connecting: "连接麦克风…",
     stopAndTranscribe: "结束并转写",
     cancelRecording: "放弃",
     transcribing: "转写中……",
