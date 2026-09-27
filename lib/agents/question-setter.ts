@@ -72,6 +72,12 @@ export async function generateQuestions(
   }, {
     shapeHint: SCHEMA_SHAPE_HINTS.questionSet,
     salvage: salvageQuestionSet,
+    // 业务校验：模型少给题（如要 3 道只给 1 道）就带原因逼重试补齐；
+    // 多给的由出口截断到 count，保证与用户选择一致
+    validate: (value) =>
+      value.questions.length >= input.count
+        ? null
+        : `题目数量不足：要求正好 ${input.count} 道，实际只给了 ${value.questions.length} 道，必须补齐到 ${input.count} 道`,
   });
-  return result.questions;
+  return result.questions.slice(0, input.count);
 }

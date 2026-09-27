@@ -46,15 +46,28 @@ function attemptParse<T>(
  * 结构化输出的容错包装（廉价中文模型经常无视 JSON Schema 指令）：
  * 1. 正常调用；2. 失败时先尝试截断修复与 salvage 抢救直接回收；
  * 3. 仍不行则带纠错指令重试一次；4. 重试输出同样先过提取与抢救。
+ * opts.validate（可选）：对 schema 通过的结果做业务校验（如题目数量），
+ * 不过则带原因再纠错重试一次——重试通过校验才采用，否则保留首个结果
+ * （校验是尽力而为的补齐，不是硬门槛）。
  * run 接收可选纠错指令（追加为一条 user 消息），不依赖网络即可单测。
  */
 export async function withSchemaRetry<T>(
   schema: z.ZodType<T>,
   run: (corrective?: string) => Promise<T>,
-  opts?: { shapeHint?: string; salvage?: (raw: string) => unknown },
+  opts?: {
+    shapeHint?: string;
+    salvage?: (raw: string) => unknown;
+    validate?: (value: T) => string | null;
+  },
 ): Promise<T> {
+  const corrective =
+    opts?.shapeHint === undefined
+      ? CORRECTIVE
+      : `${CORRECTIVE}\n目标结构示例（字段名逐字照抄，值仅示意）：\n${opts.shapeHint}`;
+
+  let first: T;
   try {
-    return await run();
+    first = await run();
   } catch (e) {
     const text = (e as { text?: unknown })?.text;
     if (typeof text !== "string") throw e;
@@ -62,10 +75,6 @@ export async function withSchemaRetry<T>(
     const recovered = attemptParse(schema, text, opts?.salvage);
     if (recovered !== undefined) return recovered;
 
-    const corrective =
-      opts?.shapeHint === undefined
-        ? CORRECTIVE
-        : `${CORRECTIVE}\n目标结构示例（字段名逐字照抄，值仅示意）：\n${opts.shapeHint}`;
     try {
       return await run(corrective);
     } catch (e2) {
@@ -75,4 +84,14 @@ export async function withSchemaRetry<T>(
       throw (e2 ?? e);
     }
   }
+
+  const problem = opts?.validate?.(first) ?? null;
+  if (!problem) return first;
+  try {
+    const second = await run(`${corrective}\n补充要求：${problem}`);
+    if ((opts?.validate?.(second) ?? null) === null) return second;
+  } catch {
+    // 重试失败：保留首个（schema 合法但不满足业务校验）
+  }
+  return first;
 }

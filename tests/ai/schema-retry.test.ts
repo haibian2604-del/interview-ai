@@ -128,4 +128,47 @@ describe("withSchemaRetry", () => {
     expect(calls).toBe(2);
     expect(r.questions[0].content).toBe("q");
   });
+
+  it("schema 通过但业务校验不过（如题数不足）→ 带原因重试，重试通过才采用", async () => {
+    let calls = 0;
+    const gotCorrective: string[] = [];
+    const r = await withSchemaRetry(
+      Schema,
+      async (corrective) => {
+        calls++;
+        gotCorrective.push(corrective ?? "");
+        return { questions: calls === 1 ? [{ content: "q1" }] : [{ content: "q1" }, { content: "q2" }] };
+      },
+      {
+        validate: (value) =>
+          value.questions.length >= 2 ? null : `题目数量不足：实际 ${value.questions.length} 道`,
+      },
+    );
+    expect(calls).toBe(2);
+    expect(gotCorrective[1]).toContain("题目数量不足");
+    expect(r.questions).toHaveLength(2);
+  });
+
+  it("重试后业务校验仍不过 → 保留首个 schema 合法结果，不抛错", async () => {
+    let calls = 0;
+    const r = await withSchemaRetry(
+      Schema,
+      async () => {
+        calls++;
+        return { questions: [{ content: `q${calls}` }] };
+      },
+      { validate: (value) => (value.questions.length >= 2 ? null : "数量不足") },
+    );
+    expect(calls).toBe(2);
+    expect(r.questions[0].content).toBe("q1");
+  });
+
+  it("无 validate 时行为不变（单次成功不重试）", async () => {
+    let calls = 0;
+    await withSchemaRetry(Schema, async () => {
+      calls++;
+      return { questions: [{ content: "q" }] };
+    });
+    expect(calls).toBe(1);
+  });
 });

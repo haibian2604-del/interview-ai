@@ -6,7 +6,17 @@
  * 抢救只是容错兜底，产出仍要过 zod schema 校验，不合法照样走纠错重试。
  */
 
-const QUESTION_TYPES = new Set(["skill", "project", "behavioral"]);
+/** type 字段别名映射：模型常写中文标签或大小写变体，能救回就不丢题 */
+const TYPE_ALIASES: Record<string, string> = {
+  skill: "skill",
+  project: "project",
+  behavioral: "behavioral",
+  技能: "skill",
+  项目: "project",
+  行为: "behavioral",
+  行为面试: "behavioral",
+  star: "behavioral",
+};
 
 function closeJson(text: string): string {
   let inString = false;
@@ -57,30 +67,34 @@ export function repairTruncatedJson(text: string): string {
   return text;
 }
 
-/** 递归收割字段齐全的题目对象（content/type/skillTag/followupAnchor 均为非空字符串），拍平任意嵌套 */
+/** 递归收割题目对象（宽容版）：content 必须是真实题干；其余字段能修则修、修不了给兜底。
+ * 丢一道题 = 用户少答一题，而 type/skillTag 轻度失真只是标签误差——两害取其轻。 */
 function collectQuestionLike(value: unknown): Record<string, string>[] {
   if (Array.isArray(value)) {
     return value.flatMap(collectQuestionLike);
   }
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    const { content, type, skillTag, followupAnchor } = obj;
-    if (
-      typeof content === "string" && content.trim() &&
-      typeof type === "string" && QUESTION_TYPES.has(type) &&
-      typeof skillTag === "string" && skillTag.trim() &&
-      typeof followupAnchor === "string" && followupAnchor.trim()
-    ) {
-      return [{ content, type, skillTag, followupAnchor }];
+    const content = typeof obj.content === "string" ? obj.content.trim() : "";
+    if (!content) {
+      return Object.values(obj).flatMap(collectQuestionLike);
     }
-    return Object.values(obj).flatMap(collectQuestionLike);
+    const rawType = typeof obj.type === "string" ? obj.type.trim().toLowerCase() : "";
+    const type = TYPE_ALIASES[rawType] ?? "skill";
+    const skillTag =
+      typeof obj.skillTag === "string" && obj.skillTag.trim() ? obj.skillTag.trim() : "综合";
+    const followupAnchor =
+      typeof obj.followupAnchor === "string" && obj.followupAnchor.trim()
+        ? obj.followupAnchor.trim()
+        : content; // 锚点缺失时以题干自身兜底：追问仍有的放矢
+    return [{ content, type, skillTag, followupAnchor }];
   }
   return [];
 }
 
 /**
- * 从病态结构（嵌套包裹/递归 questions）中抢救题目集合。
- * 只回收字段齐全的题；回收不到任何完整题时返回 undefined（交回纠错重试）。
+ * 从病态结构（嵌套包裹/递归 questions/字段残缺）中抢救题目集合。
+ * 只要求 content 是真实题干，其余字段修复或兜底；一道都收不到时返回 undefined（交回纠错重试）。
  */
 export function salvageQuestionSet(text: string): Record<string, unknown> | undefined {
   let value: unknown;

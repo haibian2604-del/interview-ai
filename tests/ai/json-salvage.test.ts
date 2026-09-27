@@ -58,7 +58,7 @@ describe("salvageQuestionSet", () => {
     expect(questions.map((q) => q.content)).toEqual(["题1", "题2"]);
   });
 
-  it("字段不全的题目对象被丢弃，只保留完整题", () => {
+  it("字段不全的题被兜底保留：type 落 skill、skillTag 落「综合」、锚点以题干兜底", () => {
     const salvaged = salvageQuestionSet(
       JSON.stringify({
         questions: [
@@ -67,18 +67,38 @@ describe("salvageQuestionSet", () => {
         ],
       }),
     );
-    const questions = salvaged?.questions as { content: string }[];
-    expect(questions).toHaveLength(1);
-    expect(questions[0].content).toBe("完整题");
+    const questions = salvaged?.questions as {
+      content: string;
+      type: string;
+      skillTag: string;
+      followupAnchor: string;
+    }[];
+    expect(questions).toHaveLength(2);
+    expect(questions[1]).toEqual({ content: "完整题", type: "behavioral", skillTag: "C", followupAnchor: "追" });
+    expect(questions[0]).toEqual({
+      content: "只有内容",
+      type: "skill",
+      skillTag: "综合",
+      followupAnchor: "只有内容",
+    });
   });
 
-  it("type 非法值的题被丢弃", () => {
+  it("type 中文标签/大小写变体 → 别名映射；彻底未知 → 兜底 skill（不丢题）", () => {
     const salvaged = salvageQuestionSet(
       JSON.stringify({
-        questions: [{ content: "题", type: "系统设计", skillTag: "A", followupAnchor: "追" }],
+        questions: [
+          { content: "题1", type: "项目", skillTag: "A", followupAnchor: "追" },
+          { content: "题2", type: "Behavioral", skillTag: "B", followupAnchor: "追" },
+          { content: "题3", type: "系统设计", skillTag: "C", followupAnchor: "追" },
+        ],
       }),
     );
-    expect(salvaged).toBeUndefined();
+    const questions = salvaged?.questions as { content: string; type: string }[];
+    expect(questions.map((q) => [q.content, q.type])).toEqual([
+      ["题1", "project"],
+      ["题2", "behavioral"],
+      ["题3", "skill"],
+    ]);
   });
 
   it("截断文本先过 repair 再收割（线上病态输出的完整链路）", () => {
@@ -93,9 +113,10 @@ describe("salvageQuestionSet", () => {
       '{"content":"最后一题被拦腰截'; // ← 截断点，followupAnchor 缺失
     const salvaged = salvageQuestionSet(repairTruncatedJson(truncated));
     expect(salvaged).toBeDefined();
-    const questions = salvaged?.questions as { content: string }[];
-    expect(questions).toHaveLength(2);
-    expect(questions.map((x) => x.content)).toEqual(["题1", "题2"]);
+    const questions = salvaged?.questions as { content: string; followupAnchor: string }[];
+    // 宽容收割：截断的最后一题保留（题干残缺但可用），字段兜底
+    expect(questions).toHaveLength(3);
+    expect(questions[2].followupAnchor).toBe(questions[2].content);
   });
 
   it("超过 10 题只取前 10", () => {
