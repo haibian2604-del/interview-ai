@@ -4,6 +4,7 @@ import {
   checkTermination,
   decideRealNextAction,
   parseMode,
+  questionStage,
 } from "@/lib/orchestrator/real-mode";
 
 describe("orchestrator/parseMode", () => {
@@ -12,6 +13,25 @@ describe("orchestrator/parseMode", () => {
     expect(parseMode("practice")).toBe("practice");
     expect(parseMode(undefined)).toBe("practice");
     expect(parseMode(42)).toBe("practice");
+  });
+});
+
+describe("orchestrator/questionStage（难度阶梯）", () => {
+  it("前 30%（0-2 题）→ opening 基础热身", () => {
+    expect(questionStage(0)).toBe("opening");
+    expect(questionStage(1)).toBe("opening");
+    expect(questionStage(2)).toBe("opening");
+  });
+
+  it("中段（3-6 题）→ core 核心考察", () => {
+    expect(questionStage(3)).toBe("core");
+    expect(questionStage(6)).toBe("core");
+  });
+
+  it("收尾（7 题起）→ deep 项目深挖/最高难度", () => {
+    expect(questionStage(7)).toBe("deep");
+    expect(questionStage(9)).toBe("deep");
+    expect(questionStage(REAL_MODE.maxQuestions)).toBe("deep");
   });
 });
 

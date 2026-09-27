@@ -16,6 +16,20 @@ export function parseMode(v: unknown): InterviewMode {
   return v === "real" ? "real" : "practice";
 }
 
+export type QuestionStage = "opening" | "core" | "deep";
+
+/**
+ * 难度阶梯（确定性）：由简到难是编排器规则，不是模型自由发挥——
+ * 开局（前 30%）基础热身（基于简历与 JD 的基础题），中段核心考察，
+ * 收尾（后 30%）项目深挖/全场最高难度（项目题放后）。
+ */
+export function questionStage(askedCount: number): QuestionStage {
+  const progress = askedCount / REAL_MODE.target;
+  if (progress < 0.3) return "opening";
+  if (progress < 0.7) return "core";
+  return "deep";
+}
+
 export type Termination = { terminate: boolean; reason: "target" | "early" | null };
 
 /**

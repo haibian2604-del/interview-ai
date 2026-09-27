@@ -4,6 +4,7 @@ import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { salvageQuestionSet, salvageSingleQuestion } from "@/lib/ai/json-salvage";
 import { getLlmConfig } from "@/lib/settings/service";
+import { questionStage, type QuestionStage } from "@/lib/orchestrator/real-mode";
 import {
   QuestionSetSchema,
   QuestionSchema,
@@ -17,6 +18,14 @@ const TYPE_HINT: Record<string, string> = {
   project: "深挖简历项目经历",
   behavioral: "行为面试题（STAR）",
   mixed: "混合：技能、项目、行为题搭配",
+};
+
+/** 难度阶梯的阶段指令（编排器 questionStage 决定当前阶段，模型只执行） */
+const STAGE_HINT: Record<QuestionStage, string> = {
+  opening:
+    "开场阶段（第 1-3 题）：出基础热身题——基于候选人简历与 JD 的基础问题（技能栈确认、经历概述、岗位理解），难度从低起步让候选人进入状态；不要出项目深挖或高难系统题。",
+  core: "核心考察阶段（中段）：出中等偏上难度的题——围绕岗位核心技能与 JD 要求考察细节与深度。",
+  deep: "收尾阶段（最后几题）：出全场最高难度的题——优先深挖简历项目的技术决策与取舍（项目题放在这个阶段），或考察系统设计与权衡。",
 };
 
 export function buildQuestionSetterMessages(input: {
@@ -87,12 +96,13 @@ export async function generateQuestions(
   return result.questions.slice(0, input.count);
 }
 
-/** 渐进出题：真实面试模式下逐题现场生成（历史感知、去重考察点） */
+/** 渐进出题：真实面试模式下逐题现场生成（历史感知、去重考察点、难度阶梯） */
 export function buildRealtimeQuestionMessages(input: {
   profile: ResumeProfile;
   jdText: string;
   position: string;
   askedQuestions: { content: string; skillTag: string }[];
+  stage: QuestionStage;
   lastExchange?: { question: string; answer: string };
 }) {
   const askedList = input.askedQuestions.length
@@ -106,6 +116,7 @@ export function buildRealtimeQuestionMessages(input: {
       role: "system" as const,
       content:
         "你是综合面试官的出题顾问。根据候选人画像、目标 JD 和已问历史，生成恰好一道新面试题。" +
+        "整场难度必须由简到难：开局基础热身，中段核心考察，收尾项目深挖/全场最高难度。" +
         "硬性要求：①只输出一道题；②考察点（skillTag）与题意不得与已问列表重复；" +
         "③type 从 skill/project/behavioral 中按题意自然选择；④每题必须给出 skillTag 与 followupAnchor。" +
         "\n输出格式：{\"content\":\"…\",\"type\":\"…\",\"skillTag\":\"…\",\"followupAnchor\":\"…\"}，不要嵌套任何包裹键。",
@@ -115,6 +126,9 @@ export function buildRealtimeQuestionMessages(input: {
       content: `目标岗位：${input.position}
 目标 JD：
 ${input.jdText || "（未提供，按岗位常识出题）"}
+
+当前难度阶段（必须严格遵守）：
+${STAGE_HINT[input.stage]}
 
 候选人画像：
 ${JSON.stringify(input.profile)}
@@ -127,13 +141,17 @@ ${askedList}${lastExchangeBlock}`,
 
 export async function generateNextQuestion(
   userId: string,
-  input: Parameters<typeof buildRealtimeQuestionMessages>[0],
+  input: Omit<Parameters<typeof buildRealtimeQuestionMessages>[0], "stage">,
 ): Promise<Question> {
   const cfg = await getLlmConfig(userId);
   return withSchemaRetry(
     QuestionSchema,
     async (corrective) => {
-      const built = buildRealtimeQuestionMessages(input);
+      // 难度阶梯由编排器确定性决定（已问题数 → 阶段），调用方无需传
+      const built = buildRealtimeQuestionMessages({
+        ...input,
+        stage: questionStage(input.askedQuestions.length),
+      });
       const { instructions, messages } = splitInstructions(
         corrective ? [...built, { role: "user" as const, content: corrective }] : built,
       );
