@@ -86,10 +86,10 @@ export function QuestionProgress({
         </ol>
       </div>
 
-      {/* 当前题考察点标签 */}
+      {/* 当前题考察点标签（考察点可能是英文+下划线长词，必须允许任意断行） */}
       <div className="px-5 py-4">
         <p className="text-xs tracking-wide text-pencil">{copy.skillTagLabel}</p>
-        <p className="mt-2 inline-block rounded-none border border-ink/30 px-2 py-1 font-mono text-xs">
+        <p className="mt-2 block w-fit max-w-full break-all rounded-none border border-ink/30 px-2 py-1 font-mono text-xs">
           {skillTag ?? "—"}
         </p>
       </div>
