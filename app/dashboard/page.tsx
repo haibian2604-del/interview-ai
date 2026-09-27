@@ -6,12 +6,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { DeleteInterviewButton } from "@/components/dashboard/delete-interview-button";
 import { COPY } from "@/lib/copy";
+import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 
 type InterviewRow = {
   id: string;
   position: string;
   interview_type: string;
   status: string;
+  mode: string;
+  question_count: number;
   created_at: string;
   completed_at: string | null;
   // reports 按 interview_id unique：PostgREST 可能给对象或单元素数组，两种形状都兼容
@@ -95,7 +98,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("interviews")
     .select(
-      "id, position, interview_type, status, created_at, completed_at, reports(overall_score)",
+      "id, position, interview_type, status, mode, question_count, created_at, completed_at, reports(overall_score)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
@@ -217,13 +220,37 @@ export default async function DashboardPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-4 md:contents">
-                          <span>
+                          <span className="flex flex-wrap items-center gap-1.5">
                             <span
                               className={`mirror-stamp-in inline-block border px-2.5 py-1 font-mono text-xs tracking-[0.25em] ${stamp.className}`}
                               style={delay}
                             >
                               {stamp.label}
                             </span>
+                            {/* 模式章：real=红墨描边（评估语义），practice=灰章；提前结束章一律灰 */}
+                            <span
+                              className={`mirror-stamp-in inline-block border px-2.5 py-1 font-mono text-xs tracking-[0.25em] ${
+                                row.mode === "real"
+                                  ? "border-ink-red/60 text-ink-red"
+                                  : "border-ink/30 text-ink/60"
+                              }`}
+                              style={delay}
+                            >
+                              {row.mode === "real" ? copy.modeReal : copy.modePractice}
+                            </span>
+                            {row.mode === "real" &&
+                              row.status === "completed" &&
+                              row.question_count < REAL_MODE.target && (
+                                <span
+                                  className="mirror-stamp-in inline-block border border-ink/30 px-2.5 py-1 font-mono text-xs tracking-[0.25em] text-ink/60"
+                                  style={delay}
+                                >
+                                  {copy.earlyEndTemplate.replace(
+                                    "{n}",
+                                    String(row.question_count),
+                                  )}
+                                </span>
+                              )}
                           </span>
                           <span className="ml-auto text-right md:ml-0">
                             {score != null ? (

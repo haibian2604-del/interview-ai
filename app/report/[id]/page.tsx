@@ -5,6 +5,7 @@ import { GenerateReportButton } from "@/components/report/generate-report-button
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { BackButton } from "@/components/back-button";
 import { COPY } from "@/lib/copy";
+import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
 
@@ -44,7 +45,7 @@ export default async function ReportPage({
   const supabase = await createSupabaseServerClient();
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, position, status")
+    .select("id, position, status, mode, question_count")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -80,6 +81,26 @@ export default async function ReportPage({
         <h1 className="font-heading text-xl font-semibold tracking-wide">
           {interview.position}
         </h1>
+        {/* 模式章：real=红墨描边（评估语义），practice=灰章；提前结束章一律灰。
+            报告页可达非 completed 场次（空态仍渲染卷首），故保留 completed 判断 */}
+        <span className="flex items-center gap-1.5">
+          <span
+            className={`border px-1.5 py-0.5 font-mono text-[10px] tracking-[0.2em] ${
+              interview.mode === "real"
+                ? "border-ink-red/60 text-ink-red"
+                : "border-ink/30 text-ink/60"
+            }`}
+          >
+            {interview.mode === "real" ? copy.modeReal : copy.modePractice}
+          </span>
+          {interview.mode === "real" &&
+            interview.status === "completed" &&
+            interview.question_count < REAL_MODE.target && (
+              <span className="border border-ink/30 px-1.5 py-0.5 font-mono text-[10px] tracking-[0.2em] text-ink/60">
+                {copy.earlyEndTemplate.replace("{n}", String(interview.question_count))}
+              </span>
+            )}
+        </span>
         <p className="ml-auto font-mono text-xs tabular-nums text-pencil">
           {COPY.common.volumeNo.replace("{no}", interview.id.slice(0, 8))}
         </p>
