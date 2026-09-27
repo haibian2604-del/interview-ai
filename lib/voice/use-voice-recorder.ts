@@ -38,6 +38,8 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
+  // getUserMedia 授权等待窗口内 state 仍是 "idle"，仅靠 UI 禁用挡不住双击起两路流
+  const startingRef = useRef(false);
   const optsRef = useRef(opts);
   // 每次渲染后同步回调，保持最新，避免 effect 依赖链（渲染期写 ref 会被 react-hooks/refs 拦截）
   useEffect(() => {
@@ -155,8 +157,14 @@ export function useVoiceRecorder(opts: UseVoiceRecorderOpts) {
   }, [releaseStream, stopRecording, supportsVoice, transcribe]);
 
   const toggle = useCallback(() => {
-    if (state === "idle") void startRecording();
-    else if (state === "recording") stopRecording();
+    if (state === "idle") {
+      // 授权等待窗口内二连点会起两路 getUserMedia（孤儿流），startingRef 兜住
+      if (startingRef.current) return;
+      startingRef.current = true;
+      void startRecording().finally(() => {
+        startingRef.current = false;
+      });
+    } else if (state === "recording") stopRecording();
   }, [state, startRecording, stopRecording]);
 
   const cancel = useCallback(() => {

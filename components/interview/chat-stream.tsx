@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
@@ -8,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { QuestionProgress } from "@/components/interview/question-progress";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { VoiceInputButton } from "@/components/voice/voice-input-button";
+import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { COPY } from "@/lib/copy";
 import type { ChatMessage, StampData } from "@/lib/interview/mappers";
 
@@ -117,6 +126,13 @@ function ScoreStamp({ data, animate }: { data: StampData; animate: boolean }) {
   );
 }
 
+// 水合门控：supportsVoice 依赖浏览器 API，SSR 为 false、水合后为 true，直接渲染会
+// hydration mismatch。useSyncExternalStore 让服务端与水合首帧一致地返回 false，
+// 水合完成后自然翻转为 true，免 effect 免定时器。
+const subscribeNever = () => () => {};
+const getMounted = () => true;
+const getServerMounted = () => false;
+
 export function ChatStream(props: ChatStreamProps) {
   const copy = COPY.interview;
   const router = useRouter();
@@ -133,6 +149,14 @@ export function ChatStream(props: ChatStreamProps) {
   const [busy, setBusy] = useState(false);
   const [abandonConfirmOpen, setAbandonConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // SSR/水合首帧为 false，水合完成后 true（见上方 subscribeNever 注释）
+  const voiceMounted = useSyncExternalStore(subscribeNever, getMounted, getServerMounted);
+  const voice = useVoiceRecorder({
+    onTranscribed: (text) =>
+      setDraft((prev) => (prev.trim() === "" ? text : `${prev.trimEnd()}\n${text}`)),
+    onError: (message) => setError(message),
+  });
 
   const startedRef = useRef(false);
   const localIdRef = useRef(0);
@@ -526,16 +550,27 @@ export function ChatStream(props: ChatStreamProps) {
             rows={4}
             className="min-h-28 rounded-none border-ink/20 text-[15px] leading-7 focus-visible:border-ink-blue focus-visible:ring-ink-blue/20"
           />
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <p className="font-mono text-xs text-pencil">{copy.shortcutHint}</p>
-            <Button
-              type="button"
-              className="rounded-none"
-              disabled={inputDisabled || !draft.trim()}
-              onClick={() => void submitAnswer()}
-            >
-              {copy.sendButton}
-            </Button>
+            <div className="flex items-center gap-3">
+              {voiceMounted && voice.supportsVoice && (
+                <VoiceInputButton
+                  state={voice.state}
+                  elapsedSeconds={voice.elapsedSeconds}
+                  disabled={inputDisabled || voice.state !== "idle"}
+                  onToggle={voice.toggle}
+                  onCancel={voice.cancel}
+                />
+              )}
+              <Button
+                type="button"
+                className="rounded-none"
+                disabled={inputDisabled || !draft.trim()}
+                onClick={() => void submitAnswer()}
+              >
+                {copy.sendButton}
+              </Button>
+            </div>
           </div>
         </div>
       </section>
