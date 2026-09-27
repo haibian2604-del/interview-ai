@@ -60,6 +60,18 @@ export async function PUT(request: Request) {
   }
   if (fields.llmChatModel !== undefined) record.llm_chat_model = fields.llmChatModel;
   if (fields.llmEvalModel !== undefined) record.llm_eval_model = fields.llmEvalModel;
+  if (fields.asrBaseUrl !== undefined) record.asr_base_url = fields.asrBaseUrl;
+  if (fields.asrApiKey !== undefined) {
+    // 空串 = 清除用户 ASR key（回落链自动顶上）；非空 = AES-GCM 加密覆盖
+    // 加密发生在任何写库动作之前：无 SETTINGS_SECRET 时此处抛错 → 500，不落半成品
+    try {
+      record.asr_api_key_enc = fields.asrApiKey === "" ? "" : encryptSecret(fields.asrApiKey);
+    } catch (e) {
+      console.error("[settings] encrypt asr key failed:", e);
+      return NextResponse.json({ error: COPY.settings.saveFailed }, { status: 500 });
+    }
+  }
+  if (fields.asrModel !== undefined) record.asr_model = fields.asrModel;
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("user_settings").upsert(record);

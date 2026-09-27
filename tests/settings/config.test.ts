@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 import type { UserLlmSettings } from "@/lib/settings/service";
+import { resolveAsrConfig } from "@/lib/settings/service";
 
 describe("settings/resolveConfig（用户配置优先、env 逐字段兜底）", () => {
   const ORIG = { ...process.env };
@@ -105,5 +106,106 @@ describe("settings/resolveConfig（用户配置优先、env 逐字段兜底）",
     const cfg = resolveConfig(userRow({ llmChatModel: "" }), env);
     expect(cfg.chatModel).toBe("env-chat-model");
     expect(() => resolveConfig(null, { ...env, llmApiKey: "" })).toThrow(/LLM_API_KEY/);
+  });
+});
+
+describe("settings/resolveAsrConfig", () => {
+  // overrideKey 用例需要走 safeDecrypt（用户已存 key 回落链），与上方 describe 同样 stub 密钥
+  const ORIG = { ...process.env };
+  beforeEach(() => {
+    vi.stubEnv("SETTINGS_SECRET", "test-settings-secret-high-entropy");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    process.env = { ...ORIG };
+  });
+
+  const base = {
+    asrBaseUrl: null,
+    asrApiKeyEnc: null,
+    asrModel: null,
+    llmBaseUrl: null,
+    llmApiKeyEnc: null,
+  };
+
+  it("用户 ASR 配置齐全 → 优先使用", () => {
+    const cfg = resolveAsrConfig({
+      user: { ...base, asrBaseUrl: "https://asr.example.com/v1", asrModel: "whisper-1" },
+      env: { asrApiKey: "env-asr-key" },
+    });
+    expect(cfg).toEqual({ baseURL: "https://asr.example.com/v1", apiKey: "env-asr-key", model: "whisper-1" });
+  });
+
+  it("baseURL 逐级回落：用户 ASR → 用户 LLM → env ASR → env LLM", () => {
+    // 注：brief 原文此用例 env 为 {}（无任何 apiKey），与实现「apiKey 缺失 → null」矛盾；
+    // 这里补 env key 让配置可解析，仅调整 apiKey 来源，baseURL 的逐级回落语义不变。
+    const viaLlm = resolveAsrConfig({
+      user: { ...base, llmBaseUrl: "https://llm.example.com/v1", asrModel: "m" },
+      env: { asrApiKey: "k" },
+    });
+    expect(viaLlm?.baseURL).toBe("https://llm.example.com/v1");
+    const viaEnvAsr = resolveAsrConfig({
+      user: { ...base, asrModel: "m" },
+      env: { asrBaseUrl: "https://a.io", asrApiKey: "k" },
+    });
+    expect(viaEnvAsr?.baseURL).toBe("https://a.io");
+    const viaEnvLlm = resolveAsrConfig({
+      user: { ...base, asrModel: "m" },
+      env: { llmBaseUrl: "https://l.io", asrApiKey: "k" },
+    });
+    expect(viaEnvLlm?.baseURL).toBe("https://l.io");
+  });
+
+  it("apiKey 逐级回落：env ASR → env LLM（密文解密链路不在纯函数测试覆盖内）", () => {
+    const viaEnvAsr = resolveAsrConfig({
+      user: { ...base, asrBaseUrl: "https://a.io", asrModel: "m" },
+      env: { asrApiKey: "k1" },
+    });
+    expect(viaEnvAsr?.apiKey).toBe("k1");
+    const viaEnvLlm = resolveAsrConfig({
+      user: { ...base, asrBaseUrl: "https://a.io", asrModel: "m" },
+      env: { llmApiKey: "k2" },
+    });
+    expect(viaEnvLlm?.apiKey).toBe("k2");
+  });
+
+  it("overrideKey 最高优先级：压过用户已存 key 与 env（test-asr 草稿 key 场景）", async () => {
+    const { encryptSecret } = await import("@/lib/settings/crypto");
+    const viaOverride = resolveAsrConfig({
+      user: { ...base, asrBaseUrl: "https://a.io", asrModel: "m" },
+      env: { asrApiKey: "k1", llmApiKey: "k2" },
+      overrideKey: "draft-key",
+    });
+    expect(viaOverride?.apiKey).toBe("draft-key");
+    // 压过用户已存的 LLM key（密文列解密回落链）
+    const viaOverrideOverUserLlm = resolveAsrConfig({
+      user: {
+        ...base,
+        asrBaseUrl: "https://a.io",
+        asrModel: "m",
+        llmApiKeyEnc: encryptSecret("sk-stored-llm-key"),
+      },
+      env: { llmApiKey: "k2" },
+      overrideKey: "draft-key",
+    });
+    expect(viaOverrideOverUserLlm?.apiKey).toBe("draft-key");
+  });
+
+  it("model 只认用户配置与 env ASR_MODEL，缺 model → null（功能未配置）", () => {
+    expect(
+      resolveAsrConfig({
+        user: { ...base, asrBaseUrl: "https://a.io" },
+        env: { asrApiKey: "k" },
+      }),
+    ).toBeNull();
+  });
+
+  it("user 为 null 且 env 不足三项 → null；env 三项齐全 → 可用", () => {
+    expect(resolveAsrConfig({ user: null, env: { asrApiKey: "k" } })).toBeNull();
+    const cfg = resolveAsrConfig({
+      user: null,
+      env: { asrBaseUrl: "https://a.io", asrApiKey: "k", asrModel: "m" },
+    });
+    expect(cfg).toEqual({ baseURL: "https://a.io", apiKey: "k", model: "m" });
   });
 });

@@ -37,7 +37,7 @@ export default async function SettingsPage() {
           </p>
         </header>
 
-        {/* 装备单：一页表单，四栏装备区 */}
+        {/* 装备单：一页表单，七栏装备区（05-07 语音栏为可选装备） */}
         <LlmSettingsForm initial={masked} />
       </div>
     </main>

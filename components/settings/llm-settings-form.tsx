@@ -17,6 +17,10 @@ export type MaskedLlmSettings = {
   llmEvalModel: string;
   hasKey: boolean;
   keyMask: string;
+  asrBaseUrl: string;
+  asrModel: string;
+  asrHasKey: boolean;
+  asrKeyMask: string;
 };
 
 /** 装备单的一栏：mono 眉标 + 字段标签 + 输入 + 灰字回落说明 */
@@ -63,16 +67,29 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
   const [hasKey, setHasKey] = useState(initial.hasKey);
   const [keyMask, setKeyMask] = useState(initial.keyMask);
 
+  // ASR 侧（语音识别装备区）：语义与 LLM 侧逐一同构，asrApiKey 未输入不提交
+  const [asrBaseUrl, setAsrBaseUrl] = useState(initial.asrBaseUrl);
+  const [asrApiKey, setAsrApiKey] = useState("");
+  const [asrModel, setAsrModel] = useState(initial.asrModel);
+  const [asrHasKey, setAsrHasKey] = useState(initial.asrHasKey);
+  const [asrKeyMask, setAsrKeyMask] = useState(initial.asrKeyMask);
+
   const [saving, setSaving] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearAsrConfirmOpen, setClearAsrConfirmOpen] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testingAsr, setTestingAsr] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [testOk, setTestOk] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+  const [testAsrOk, setTestAsrOk] = useState<string | null>(null);
+  const [testAsrError, setTestAsrError] = useState<string | null>(null);
 
   // hasKey=true 且掩码为空串 = 已存密钥无法解密（SETTINGS_SECRET 可能已更换）
   const keyUndecryptable = hasKey && keyMask === "";
+  // ASR 侧同规则：解密失败（掩码空串）→ 06 栏显示「请重新填写」红墨批注
+  const asrKeyUndecryptable = asrHasKey && asrKeyMask === "";
 
   const keyPlaceholder = hasKey
     ? keyUndecryptable
@@ -80,7 +97,14 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
       : copy.apiKeyPlaceholderMasked.replace("{mask}", keyMask)
     : copy.apiKeyPlaceholder;
 
-  const busy = saving || testing;
+  const asrKeyPlaceholder = asrHasKey
+    ? asrKeyUndecryptable
+      ? copy.apiKeyPlaceholderUndecryptable
+      : copy.apiKeyPlaceholderMasked.replace("{mask}", asrKeyMask)
+    : copy.asrApiKeyPlaceholder;
+
+  // 三路互斥：保存 / 测试连接 / 测试转写 任意进行中，其余按钮一律禁用
+  const busy = saving || testing || testingAsr;
 
   /** PUT /api/settings 的共用骨架：401/业务错误归因、成功返回最新掩码形态 */
   async function putSettings(body: Record<string, string>): Promise<PutResult> {
@@ -122,6 +146,23 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
     setSaving(false);
   }
 
+  /** 清除已存语音密钥——PUT 传空串（API 空串语义 = 清除，回落链自动顶上） */
+  async function clearAsrKey() {
+    if (busy || !asrHasKey) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveNotice(null);
+    const result = await putSettings({ asrApiKey: "" });
+    if (result.ok) {
+      setAsrHasKey(result.payload.asrHasKey);
+      setAsrKeyMask(result.payload.asrKeyMask);
+      setSaveNotice(copy.saveSuccess);
+    } else {
+      setSaveError(result.error);
+    }
+    setSaving(false);
+  }
+
   async function save() {
     if (busy) return;
     setSaving(true);
@@ -131,9 +172,13 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
       llmBaseUrl: baseUrl.trim(),
       llmChatModel: chatModel.trim(),
       llmEvalModel: evalModel.trim(),
+      asrBaseUrl: asrBaseUrl.trim(),
+      asrModel: asrModel.trim(),
     };
     const key = apiKey.trim();
     if (key !== "") body.llmApiKey = key; // 未输入 key 时 PUT 不带该字段：保持现有
+    const asrKey = asrApiKey.trim();
+    if (asrKey !== "") body.asrApiKey = asrKey; // ASR key 同语义：未输入不提交
     const result = await putSettings(body);
     if (result.ok) {
       // PUT 成功响应即最新掩码形态：就地刷新，不落任何 key 形态
@@ -143,6 +188,11 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
       setHasKey(result.payload.hasKey);
       setKeyMask(result.payload.keyMask);
       setApiKey("");
+      setAsrBaseUrl(result.payload.asrBaseUrl);
+      setAsrModel(result.payload.asrModel);
+      setAsrHasKey(result.payload.asrHasKey);
+      setAsrKeyMask(result.payload.asrKeyMask);
+      setAsrApiKey("");
       setSaveNotice(copy.saveSuccess);
     } else {
       setSaveError(result.error);
@@ -184,6 +234,43 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
       setTestError(copy.testFailedPrefix + copy.testBroken);
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function testAsr() {
+    if (busy) return;
+    setTestingAsr(true);
+    setTestAsrOk(null);
+    setTestAsrError(null);
+    try {
+      // 草稿语义：仅非空字段覆盖已存配置；key 未输入则不带（测已存/回落链）
+      const body: Record<string, string> = {};
+      if (asrBaseUrl.trim() !== "") body.asrBaseUrl = asrBaseUrl.trim();
+      if (asrApiKey.trim() !== "") body.asrApiKey = asrApiKey.trim();
+      if (asrModel.trim() !== "") body.asrModel = asrModel.trim();
+      const res = await fetch("/api/settings/test-asr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) {
+        setTestAsrError(COPY.api.unauthorized);
+        return;
+      }
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        model?: string;
+        error?: string;
+      } | null;
+      if (payload?.ok && payload.model) {
+        setTestAsrOk(copy.testAsrOkTemplate.replace("{model}", payload.model));
+      } else {
+        setTestAsrError(copy.testFailedPrefix + (payload?.error ?? copy.testBroken));
+      }
+    } catch {
+      setTestAsrError(copy.testFailedPrefix + copy.testBroken);
+    } finally {
+      setTestingAsr(false);
     }
   }
 
@@ -291,6 +378,85 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         />
       </FieldSection>
 
+      {/* 语音能力说明（可选装备的卷首批注） */}
+      <p className="border-b border-ink/15 px-6 py-4 text-xs leading-5 text-pencil">{copy.asrHeaderNote}</p>
+
+      {/* 05 · 语音识别端点 */}
+      <FieldSection
+        eyebrow={copy.sectionAsrEndpoint}
+        label={copy.asrBaseUrlLabel}
+        htmlFor="settings-asr-base-url"
+        hint={copy.asrFallbackHint}
+      >
+        <Input
+          id="settings-asr-base-url"
+          value={asrBaseUrl}
+          onChange={(e) => setAsrBaseUrl(e.target.value)}
+          placeholder={copy.asrBaseUrlPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
+          className={`mt-2 ${focusInk}`}
+        />
+      </FieldSection>
+
+      {/* 06 · 语音识别密钥 */}
+      <FieldSection
+        eyebrow={copy.sectionAsrApiKey}
+        label={copy.asrApiKeyLabel}
+        htmlFor="settings-asr-api-key"
+        hint={copy.asrApiKeyHint}
+        annotation={
+          asrKeyUndecryptable ? (
+            <div className="mt-3">
+              <ErrorAnnotation text={copy.keyUndecryptable} />
+            </div>
+          ) : undefined
+        }
+      >
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Input
+            id="settings-asr-api-key"
+            type="password"
+            value={asrApiKey}
+            onChange={(e) => setAsrApiKey(e.target.value)}
+            placeholder={asrKeyPlaceholder}
+            autoComplete="new-password"
+            spellCheck={false}
+            className={`min-w-0 flex-1 ${focusInk}`}
+          />
+          {asrHasKey && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="relative rounded-none text-pencil hover:text-ink before:absolute before:inset-[-10px] before:max-md:content-['']"
+              disabled={busy}
+              onClick={() => setClearAsrConfirmOpen(true)}
+            >
+              {copy.clearAsrKeyButton}
+            </Button>
+          )}
+        </div>
+      </FieldSection>
+
+      {/* 07 · 语音识别模型 */}
+      <FieldSection
+        eyebrow={copy.sectionAsrModel}
+        label={copy.asrModelLabel}
+        htmlFor="settings-asr-model"
+        hint={copy.asrModelFallbackHint}
+      >
+        <Input
+          id="settings-asr-model"
+          value={asrModel}
+          onChange={(e) => setAsrModel(e.target.value)}
+          placeholder={copy.asrModelPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
+          className={`mt-2 ${focusInk}`}
+        />
+      </FieldSection>
+
       {/* 卷脚：存档 + 测试连接 + 印刷语义结果行 */}
       <footer className="px-6 py-6">
         <div className="flex flex-wrap items-center gap-3">
@@ -305,6 +471,15 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
             onClick={() => void testConnection()}
           >
             {testing ? copy.testing : copy.testButton}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-none"
+            disabled={busy}
+            onClick={() => void testAsr()}
+          >
+            {testingAsr ? copy.testingAsr : copy.testAsrButton}
           </Button>
         </div>
         <div aria-live="polite">
@@ -326,6 +501,14 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
               <ErrorAnnotation text={testError} />
             </div>
           )}
+          {testAsrOk && (
+            <p className="mt-4 font-mono text-sm tracking-wide text-ink">{copy.okMark} {testAsrOk}</p>
+          )}
+          {testAsrError && (
+            <div className="mt-4">
+              <ErrorAnnotation text={testAsrError} />
+            </div>
+          )}
         </div>
       </footer>
       <ConfirmDialog
@@ -336,6 +519,15 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         confirmLabel={copy.clearKeyButton ?? COPY.common.dialogOk}
         destructive
         onConfirm={() => void clearKey()}
+      />
+      <ConfirmDialog
+        open={clearAsrConfirmOpen}
+        onOpenChange={setClearAsrConfirmOpen}
+        title={copy.clearAsrKeyTitle}
+        description={copy.clearAsrKeyConfirm}
+        confirmLabel={copy.clearAsrKeyButton ?? COPY.common.dialogOk}
+        destructive
+        onConfirm={() => void clearAsrKey()}
       />
     </form>
   );

@@ -89,7 +89,9 @@ export async function getMaskedLlmSettings(userId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: settings, error } = await supabase
     .from("user_settings")
-    .select("llm_base_url, llm_api_key_enc, llm_chat_model, llm_eval_model")
+    .select(
+      "llm_base_url, llm_api_key_enc, llm_chat_model, llm_eval_model, asr_base_url, asr_api_key_enc, asr_model",
+    )
     .eq("user_id", userId)
     .maybeSingle();
   if (error) {
@@ -102,6 +104,12 @@ export async function getMaskedLlmSettings(userId: string) {
     const plaintext = safeDecrypt(settings.llm_api_key_enc);
     if (plaintext !== undefined) keyMask = maskSecret(plaintext);
   }
+  // ASR 侧同规则：密文解密失败 → 空 mask，设置页显示「请重新填写」
+  let asrKeyMask = "";
+  if (settings?.asr_api_key_enc) {
+    const plaintext = safeDecrypt(settings.asr_api_key_enc);
+    if (plaintext !== undefined) asrKeyMask = maskSecret(plaintext);
+  }
   return {
     hasUserConfig: !!settings,
     llmBaseUrl: settings?.llm_base_url ?? "",
@@ -109,5 +117,87 @@ export async function getMaskedLlmSettings(userId: string) {
     llmEvalModel: settings?.llm_eval_model ?? "",
     hasKey,
     keyMask,
+    asrBaseUrl: settings?.asr_base_url ?? "",
+    asrModel: settings?.asr_model ?? "",
+    asrHasKey: !!settings?.asr_api_key_enc,
+    asrKeyMask,
   };
+}
+
+export type AsrConfig = { baseURL: string; apiKey: string; model: string };
+
+/** user_settings 行 ASR 列的 camelCase 形状（连同 LLM 同行字段一起传入，供回落链使用） */
+export type UserAsrSettings = {
+  asrBaseUrl: string | null;
+  asrApiKeyEnc: string | null;
+  asrModel: string | null;
+};
+
+/** env 侧 ASR 兜底值；LLM 两项用于「用户没单配 ASR 时回落到同一网关」 */
+export type AsrEnv = {
+  asrBaseUrl?: string;
+  asrApiKey?: string;
+  asrModel?: string;
+  llmBaseUrl?: string;
+  llmApiKey?: string;
+};
+
+/**
+ * 纯合并逻辑（语音是可选能力，解析不出必填项 → null = 功能未配置，不抛错）：
+ * baseURL/apiKey 逐字段回落链：用户 ASR → 用户 LLM → env ASR_* → env LLM_*；
+ * model 只认用户 asrModel 与 env ASR_MODEL（不做默认值猜测，避免指向不存在的模型）。
+ * apiKey 的最高优先级是 overrideKey：test-asr 路由的明文草稿 key 不能走密文列通道，
+ * 必须压过用户已存 key 的解密回落。
+ */
+export function resolveAsrConfig(input: {
+  user: (UserAsrSettings & { llmBaseUrl: string | null; llmApiKeyEnc: string | null }) | null;
+  env: AsrEnv;
+  overrideKey?: string;
+}): AsrConfig | null {
+  const u = input.user;
+  const userKey = u?.asrApiKeyEnc ? safeDecrypt(u.asrApiKeyEnc) : undefined;
+  const userLlmKey = u?.llmApiKeyEnc ? safeDecrypt(u.llmApiKeyEnc) : undefined;
+  const baseURL = u?.asrBaseUrl || u?.llmBaseUrl || input.env.asrBaseUrl || input.env.llmBaseUrl;
+  const apiKey = input.overrideKey || userKey || userLlmKey || input.env.asrApiKey || input.env.llmApiKey;
+  const model = u?.asrModel || input.env.asrModel;
+  if (!baseURL || !apiKey || !model) return null;
+  return { baseURL, apiKey, model };
+}
+
+/** 从 process.env 收集 ASR 兜底值（导出：test-asr 路由的草稿覆盖也要用同一 env 集） */
+export function collectAsrEnv(): AsrEnv {
+  return {
+    asrBaseUrl: optionalEnv("ASR_BASE_URL"),
+    asrApiKey: optionalEnv("ASR_API_KEY"),
+    asrModel: optionalEnv("ASR_MODEL"),
+    llmBaseUrl: optionalEnv("LLM_BASE_URL"),
+    llmApiKey: optionalEnv("LLM_API_KEY"),
+  };
+}
+
+export async function getAsrConfig(userId: string): Promise<AsrConfig | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data: settings, error } = await supabase
+    .from("user_settings")
+    .select("asr_base_url, asr_api_key_enc, asr_model, llm_base_url, llm_api_key_enc")
+    .eq("user_id", userId)
+    .maybeSingle();
+  // 迁移未应用（列不存在）等查询失败：视同未配置，语音是可选能力，不 crash
+  if (error) {
+    console.error("[settings] load user_settings(asr) failed, treat as unconfigured:", error.message);
+  }
+
+  // snake_case 列 → camelCase 形状后交给纯函数（映射铁律）
+  return resolveAsrConfig({
+    user: settings
+      ? {
+          asrBaseUrl: settings.asr_base_url,
+          asrApiKeyEnc: settings.asr_api_key_enc,
+          asrModel: settings.asr_model,
+          llmBaseUrl: settings.llm_base_url,
+          llmApiKeyEnc: settings.llm_api_key_enc,
+        }
+      : null,
+    env: collectAsrEnv(),
+  });
 }

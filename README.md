@@ -69,6 +69,11 @@ cp .env.example .env.local
 | `LLM_CHAT_MODEL` | 廉价模型：简历分析/出题/面试官话术使用（如 `gpt-4o-mini`） |
 | `LLM_EVAL_MODEL` | 可选：强模型，评估/报告专用（如 `gpt-4o`）；不配则回落到 `LLM_CHAT_MODEL` |
 | `SETTINGS_SECRET` | 用户级 LLM 设置（API Key）的加密密钥：任意高熵随机串（如 `openssl rand -base64 32` 生成）。丢失或更换后，已存用户 key 无法解密（自动回落系统默认，设置页会提示重新填写），务必妥善备份 |
+| `ASR_BASE_URL` | 可选，用户级 BYOK 配置的回落：语音识别的 OpenAI 兼容端点（`/audio/transcriptions`）；不配则逐字段回落用户的 LLM 端点 |
+| `ASR_API_KEY` | 可选，用户级 BYOK 配置的回落：语音识别端点的 API Key；不配则逐字段回落用户的 LLM Key |
+| `ASR_MODEL` | 可选，用户级 BYOK 配置的回落：语音识别模型（如 `whisper-1`）；不配则语音作答不可用 |
+
+逐字段回落链：用户 ASR 配置 → 用户已存 LLM 配置 → 环境变量 `ASR_*` → 环境变量 `LLM_*`（模型仅认用户配置与 `ASR_MODEL`，不回落 LLM 模型）。
 
 ### 3. 初始化数据库
 
