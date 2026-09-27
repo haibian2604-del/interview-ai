@@ -279,9 +279,15 @@ export function ChatStream(props: ChatStreamProps) {
             isFollowupQuestion: false,
           });
         }
+        // 服务端已把面试置为 in_progress（含恢复场景），客户端同步，
+        // 否则 real 模式的接续 effect（要求 status === "in_progress"）永不触发
+        setStatus("in_progress");
         return;
       }
       await streamIntoBubble(res, { questionIdx: 0, isFollowupQuestion: false });
+      // 同上：开场成功即同步 in_progress；real 模式下首题由 start 现场生成但客户端
+      // 题表仍为空，status 就位后接续 effect 经 next-question 的 duplicate 分支补全题表
+      setStatus("in_progress");
     } catch {
       setError(copy.startFailed);
     } finally {
@@ -372,6 +378,8 @@ export function ChatStream(props: ChatStreamProps) {
 
   // 真实面试自动接续：currentIndex 指向尚未生成的题即触发现场出题。
   // nextStartedRef 兜住触发期间（题未入列前）依赖变化导致的重复发起。
+  // 开场 effect 用 setTimeout 移出首次 setState，而这里经 fetchNextQuestion（async 函数）
+  // 间接调用 setState：规则语义上等价于事件处理器路径的异步回调，无需定时器。
   const nextStartedRef = useRef(false);
   useEffect(() => {
     if (!shouldGenerate) return;
@@ -620,7 +628,9 @@ export function ChatStream(props: ChatStreamProps) {
           className="min-h-0 flex-1 space-y-6 overflow-y-auto py-6 pr-1"
         >
           {renderFlow()}
-          {pendingGeneration && (
+          {/* pendingGeneration 覆盖整个生成+流式过程；但题干一经入列（打字机开播）即撤下
+              加载行，避免「考官翻阅你的档案……」与流式题干同屏——输入仍禁用到流结束 */}
+          {pendingGeneration && !questionList[safeIndex] && (
             <li className="flex justify-center py-4">
               <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-ink-blue">
                 {COPY.realMode.loadingNext}
