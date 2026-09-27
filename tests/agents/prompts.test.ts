@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildQuestionSetterMessages } from "@/lib/agents/question-setter";
+import {
+  buildQuestionSetterMessages,
+  buildRealtimeQuestionMessages,
+} from "@/lib/agents/question-setter";
 import { buildEvaluatorMessages } from "@/lib/agents/evaluator";
 import { buildReportMessages } from "@/lib/agents/report-writer";
 import { buildInterviewerMessages, INTERVIEWER_PERSONA } from "@/lib/agents/interviewer";
@@ -134,5 +137,38 @@ describe("buildInterviewerMessages comment 模式", () => {
 describe("buildResumeAnalystMessages", () => {
   it("包含简历原文", () => {
     expect(JSON.stringify(buildResumeAnalystMessages("十年架构经验"))).toContain("十年架构经验");
+  });
+});
+
+describe("buildRealtimeQuestionMessages", () => {
+  const profile = { summary: "s", skills: [], experiences: [], projects: [] };
+  const base = { profile, jdText: "jd", position: "后端", askedQuestions: [] as { content: string; skillTag: string }[] };
+
+  it("系统指令含综合面试官视角与「恰好一道」硬约束", () => {
+    const messages = buildRealtimeQuestionMessages(base);
+    expect(messages[0].role).toBe("system");
+    expect(messages[0].content).toContain("一道");
+  });
+
+  it("已问历史进 prompt 且带去重硬指令（skillTag 逐条列出）", () => {
+    const messages = buildRealtimeQuestionMessages({
+      ...base,
+      askedQuestions: [
+        { content: "讲讲 RAG 检索", skillTag: "VectorSearch" },
+        { content: "讲讲 LangGraph 状态机", skillTag: "LangGraph" },
+      ],
+    });
+    const userMsg = messages[messages.length - 1].content;
+    expect(userMsg).toContain("VectorSearch");
+    expect(userMsg).toContain("讲讲 RAG 检索");
+    expect(userMsg).toContain("不得重复");
+  });
+
+  it("lastExchange 存在时进入 prompt（顺延候选人暴露的点）", () => {
+    const messages = buildRealtimeQuestionMessages({
+      ...base,
+      lastExchange: { question: "讲讲项目", answer: "我做了个多租户系统……" },
+    });
+    expect(messages[messages.length - 1].content).toContain("多租户系统");
   });
 });

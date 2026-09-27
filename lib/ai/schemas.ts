@@ -70,4 +70,6 @@ export const SCHEMA_SHAPE_HINTS = {
     '{"scores":{"relevance":0.8,"depth":0.6,"structure":0.7,"communication":0.9},"starCompleteness":0.5,"strengths":"亮点","improvements":"不足与具体改法"}',
   report:
     '{"overallScore":85,"dimensionScores":{"relevance":80,"depth":70,"structure":90,"communication":75},"summary":"总结","strengths":"优势","improvements":"改进"}',
+  question:
+    '{"content":"题目原文","type":"skill 或 project 或 behavioral 之一","skillTag":"考察点","followupAnchor":"值得追问的具体方向"}',
 } as const;
