@@ -73,6 +73,8 @@ cp .env.example .env.local
 | `ASR_API_KEY` | 可选，用户级 BYOK 配置的回落：语音识别端点的 API Key；不配则逐字段回落用户的 LLM Key |
 | `ASR_MODEL` | 可选，用户级 BYOK 配置的回落：语音识别模型（如 `whisper-1`）；不配则语音作答不可用 |
 
+逐字段回落链：用户 ASR 配置 → 用户已存 LLM 配置 → 环境变量 `ASR_*` → 环境变量 `LLM_*`（模型仅认用户配置与 `ASR_MODEL`，不回落 LLM 模型）。
+
 ### 3. 初始化数据库
 
 打开 Supabase Dashboard → **SQL Editor**，把 [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) 的全部内容粘贴进去执行。该脚本建 7 张表（profiles / resumes / interviews / questions / messages / evaluations / reports）并启用 RLS，同时创建简历 PDF 的 Storage bucket 与策略。

@@ -287,7 +287,7 @@ export const COPY = {
     testAsrOkTemplate: "转写链路可用（模型：{model}）",
   },
   voice: {
-    notConfigured: "语音作答尚未配置：请到「装备单」登记语音识别端点、密钥与模型",
+    notConfigured: "语音作答尚未配置：请到「装备单」登记语音识别模型（端点与密钥可回落已存的 LLM 配置）",
     errNoAudio: "未收到有效录音，请重试",
     errTooLarge: "录音过大（上限 4MB）：请控制单次作答时长",
     transcribeFailed: "转写失败：上游语音识别服务未正常响应，可改用键盘作答",
