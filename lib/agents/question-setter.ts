@@ -3,6 +3,7 @@ import { getModel } from "@/lib/ai/provider";
 import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { salvageQuestionSet, salvageSingleQuestion } from "@/lib/ai/json-salvage";
+import { projectGrillQuestionContract } from "@/lib/agents/skills/project-grill";
 import { getLlmConfig } from "@/lib/settings/service";
 import { questionStage, type Difficulty, type QuestionStage } from "@/lib/orchestrator/real-mode";
 import {
@@ -134,6 +135,7 @@ export function buildRealtimeQuestionMessages(input: {
         "整场难度必须由简到难：开局基础热身，中段核心考察，收尾项目深挖/全场最高难度。" +
         "硬性要求：①只输出一道题；②考察点（skillTag）与题意不得与已问列表重复；" +
         "③type 从 skill/project/behavioral 中按题意自然选择；④每题必须给出 skillTag 与 followupAnchor。" +
+        `\n${projectGrillQuestionContract()}` +
         "\n输出格式：输出合法 JSON——{\"content\":\"…\",\"type\":\"…\",\"skillTag\":\"…\",\"followupAnchor\":\"…\"}，不要嵌套任何包裹键。",
     },
     {

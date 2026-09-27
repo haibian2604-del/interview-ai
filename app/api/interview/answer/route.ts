@@ -8,6 +8,7 @@ import { loadCompositeScores } from "@/lib/interview/scores";
 import type { Evaluation } from "@/lib/ai/schemas";
 import { rowToQuestion, candidateTurnCount, toAgentRole, type AgentRole } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
+import { isProjectGrillApplicable, projectGrillFollowupDirectives } from "@/lib/agents/skills/project-grill";
 import { COPY } from "@/lib/copy";
 import { serverErrorResponse } from "@/lib/api/server-error";
 
@@ -181,11 +182,18 @@ export async function POST(request: Request) {
     }
   }
 
-  // 组装面试官话术 payload（history 用 C2 归一后的角色：followup 轮回答也是候选人）
+  // 组装面试官话术 payload（history 用 C2 归一后的角色：followup 轮回答也是候选人）。
+  // 真实面试的项目题追问走「问穿」技能：只追最关键缺失证据 + 风险信号 + 卡住降阶。
+  const followupText = isProjectGrillApplicable(interview.mode, question.type)
+    ? projectGrillFollowupDirectives({
+        anchor: question.followup_anchor,
+        improvements: evaluation.improvements,
+      })
+    : `针对回答的不足（${evaluation.improvements}），围绕追问锚点「${question.followup_anchor}」提出一个具体追问。`;
   const payload: Parameters<typeof streamInterviewer>[2] = {
     question: rowToQuestion(question),
     history: [...agentHistory, { role: "candidate" as const, content: answer }],
-    followupText: `针对回答的不足（${evaluation.improvements}），围绕追问锚点「${question.followup_anchor}」提出一个具体追问。`,
+    followupText,
   };
   if (next.action === "next_question" && interview.mode !== "real") {
     const { data: nextQuestion, error: nextQuestionError } = await supabase
