@@ -12,7 +12,7 @@ import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
 import { resumeDigest } from "@/lib/resume/profile-preview";
 
-type ResumeRow = { id: string; created_at: string; structured_json: unknown; raw_text: string | null };
+type ResumeRow = { id: string; created_at: string; structured_json: unknown; raw_text: string | null; name: string | null };
 type InterviewType = "skill" | "project" | "behavioral" | "mixed";
 type Phase = "form" | "printing";
 
@@ -141,7 +141,7 @@ export default function InterviewNewPage() {
     void (async () => {
       const { data, error: fetchError } = await supabase
         .from("resumes")
-        .select("id, created_at, structured_json, raw_text")
+        .select("id, created_at, structured_json, raw_text, name")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (fetchError) {
@@ -346,7 +346,13 @@ export default function InterviewNewPage() {
                               <span className="font-mono text-sm tracking-widest">
                                 {archiveNo(i)}
                               </span>
-                              <span className="ml-auto font-mono text-xs text-pencil">
+                              {/* 自命名（可选）：与档案库卡片同款，未命名回落仅显编号 */}
+                              {resume.name && (
+                                <span className="min-w-0 truncate text-sm font-medium text-ink">
+                                  {resume.name}
+                                </span>
+                              )}
+                              <span className="ml-auto shrink-0 font-mono text-xs text-pencil">
                                 {formatDate(resume.created_at)}
                               </span>
                             </div>
