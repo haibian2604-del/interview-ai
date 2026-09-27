@@ -232,8 +232,10 @@ export default function InterviewNewPage() {
         // 成卷先于进场：盖章落定（~1s）再切路由，翻转卡顿为收束感；
         // RSC 载入间隙由面试路由的 loading 兜底页接住。成功后不回表单（旧版闪回的根源）。
         succeeded = true;
-        setPhase("binding");
-        await new Promise((resolve) => setTimeout(resolve, 950));
+        if (mode === "practice") {
+          setPhase("binding");
+          await new Promise((resolve) => setTimeout(resolve, 950));
+        }
         router.push(`/interview/${payload.interviewId}`);
         return;
       }
