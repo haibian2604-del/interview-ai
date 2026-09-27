@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
-import { resumeProfilePreview } from "@/lib/resume/profile-preview";
+import { resumeDigest, resumeProfilePreview } from "@/lib/resume/profile-preview";
 
 type ResumeRow = {
   id: string;
@@ -197,6 +197,8 @@ function ResumeCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   // B12：画像已结构化的档案展示摘要 + 考察点，未结构化的维持「画像待生成」占位
   const profile = resumeProfilePreview(resume.structured_json);
+  // 简历缩略（常显）：画像 summary 优先，raw_text 摘录兜底——不看展开就能知道档案大概内容
+  const digest = resumeDigest(resume);
 
   // 销档（B6）：先销索引行（ cascade 清面试记录），再尽力而为清 Storage 原件——
   // 顺序反过来会在行删除失败时留下「指向已删原件」的孤儿行
@@ -237,6 +239,11 @@ function ResumeCard({
           {COPY.resumes.dateLabel} {formatDate(resume.created_at)}
         </span>
       </div>
+      {digest && (
+        <p className="border-b border-ink/15 px-5 py-3 text-xs leading-5 text-pencil line-clamp-2">
+          {digest}
+        </p>
+      )}
       <div className="px-5 py-4">
         <button
           type="button"
@@ -324,7 +331,7 @@ export default function ResumesPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("resumes")
-        .select("id, created_at, storage_path, structured_json")
+        .select("id, created_at, storage_path, structured_json, raw_text")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) {

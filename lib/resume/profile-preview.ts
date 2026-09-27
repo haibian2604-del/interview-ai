@@ -24,3 +24,18 @@ export function resumeProfilePreview(structuredJson: unknown): ResumeProfilePrev
     skills: skills.slice(0, 6),
   };
 }
+
+/**
+ * 简历缩略：让用户一眼知道这份档案大概是什么。
+ * 画像已生成用 summary；否则从 raw_text 摘前 80 个非空白字符兜底
+ * （未跑过画像分析的档案也有内容可看）。两者皆无 → null（显示占位）。
+ */
+export function resumeDigest(resume: {
+  structured_json: unknown;
+  raw_text?: string | null;
+}): string | null {
+  const preview = resumeProfilePreview(resume.structured_json);
+  if (preview?.summary) return preview.summary;
+  const flat = (resume.raw_text ?? "").replace(/\s+/g, " ").trim();
+  return flat ? flat.slice(0, 80) : null;
+}

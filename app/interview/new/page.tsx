@@ -10,8 +10,9 @@ import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
+import { resumeDigest } from "@/lib/resume/profile-preview";
 
-type ResumeRow = { id: string; created_at: string };
+type ResumeRow = { id: string; created_at: string; structured_json: unknown; raw_text: string | null };
 type InterviewType = "skill" | "project" | "behavioral" | "mixed";
 type Phase = "form" | "printing";
 
@@ -140,7 +141,7 @@ export default function InterviewNewPage() {
     void (async () => {
       const { data, error: fetchError } = await supabase
         .from("resumes")
-        .select("id, created_at")
+        .select("id, created_at, structured_json, raw_text")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (fetchError) {
@@ -318,6 +319,7 @@ export default function InterviewNewPage() {
                     >
                       {resumes.map((resume, i) => {
                         const selected = resumeId === resume.id;
+                        const digest = resumeDigest(resume);
                         return (
                           <button
                             key={resume.id}
@@ -327,25 +329,33 @@ export default function InterviewNewPage() {
                             aria-checked={selected}
                             disabled={busy}
                             onClick={() => setResumeId(resume.id)}
-                            className={`flex items-center gap-3 rounded-none border px-4 py-3 text-left transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
+                            className={`rounded-none border px-4 py-3 text-left transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
                               selected
                                 ? "border-ink bg-ink/[0.04]"
                                 : "border-ink/15 hover:border-ink/40"
                             }`}
                           >
-                            {/* 勾稽方格：选中填墨 */}
-                            <span
-                              aria-hidden
-                              className={`flex size-4 shrink-0 items-center justify-center border ${
-                                selected ? "border-ink bg-ink" : "border-ink/40"
-                              }`}
-                            />
-                            <span className="font-mono text-sm tracking-widest">
-                              {archiveNo(i)}
-                            </span>
-                            <span className="ml-auto font-mono text-xs text-pencil">
-                              {formatDate(resume.created_at)}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              {/* 勾稽方格：选中填墨 */}
+                              <span
+                                aria-hidden
+                                className={`flex size-4 shrink-0 items-center justify-center border ${
+                                  selected ? "border-ink bg-ink" : "border-ink/40"
+                                }`}
+                              />
+                              <span className="font-mono text-sm tracking-widest">
+                                {archiveNo(i)}
+                              </span>
+                              <span className="ml-auto font-mono text-xs text-pencil">
+                                {formatDate(resume.created_at)}
+                              </span>
+                            </div>
+                            {/* 简历缩略：让用户选卡前就知道档案大概内容 */}
+                            {digest && (
+                              <p className="mt-2 line-clamp-2 text-xs leading-5 text-pencil">
+                                {digest}
+                              </p>
+                            )}
                           </button>
                         );
                       })}
