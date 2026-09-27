@@ -107,7 +107,8 @@ export const COPY = {
     headerLabel: "考前登记表 · 开卷登记",
     headerTitle: "新建面试",
     headerHint:
-      "三步登记：调卷、报岗、定题。登记完毕，考官依卷出题，约需 10-30 秒。",
+      "先定模式：真实面试或练习试卷。再调卷、报岗、定题；登记完毕，考官依卷出题，约需 10-30 秒。",
+    modeSectionLabel: "定模式",
     modeLabel: "面试模式",
     modePracticeName: "练习试卷",
     modePracticeDesc: "自选题型与题量，一次性出卷，逐题作答",

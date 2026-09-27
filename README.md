@@ -81,6 +81,8 @@ cp .env.example .env.local
 
 再依次执行 [`supabase/migrations/0002_user_settings.sql`](supabase/migrations/0002_user_settings.sql)，建 user_settings 表（用户级 LLM 设置，启用 RLS）。未执行 0002 时设置页可浏览但无法保存（保存会提示「系统尚未启用该功能」）。
 
+继续依次执行 [`supabase/migrations/0003_asr_settings.sql`](supabase/migrations/0003_asr_settings.sql)（user_settings 增加 ASR 配置列，语音输入依赖）与 [`supabase/migrations/0004_real_mode.sql`](supabase/migrations/0004_real_mode.sql)（interviews 增加 mode 列、questions 加 (interview_id, idx) 唯一索引，真实面试模式依赖）。未执行 0004 时创建页无法开考真实面试。
+
 ### 4. 开启 Auth 提供方
 
 - **Email（必开）**：Dashboard → Authentication → Sign In / Providers → Email 开启（magic link 模式使用）。
@@ -128,7 +130,7 @@ lib/
   resume/                  # pdf.ts（PDF 抽取封装）
   settings/                # crypto.ts（AES-256-GCM）+ service.ts（配置解析/掩码）+ validation.ts（入参校验）
   copy.ts                  # 全部中文文案集中管理
-supabase/migrations/       # 0001_init.sql：建表 + RLS + Storage；0002_user_settings.sql：用户级 LLM 设置
+supabase/migrations/       # 0001_init.sql：建表 + RLS + Storage；0002_user_settings.sql：用户级 LLM 设置；0003_asr_settings.sql：ASR 配置；0004_real_mode.sql：真实面试模式
 tests/                     # vitest：orchestrator / agents / ai / interview / resume / settings / api
 ```
 

@@ -122,6 +122,7 @@ export default function InterviewNewPage() {
   const [count, setCount] = useState(COUNT_DEFAULT);
   const [mode, setMode] = useState<"practice" | "real">("practice");
   const [phase, setPhase] = useState<Phase>("form");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -144,6 +145,7 @@ export default function InterviewNewPage() {
   }, [supabase]);
 
   async function create() {
+    if (submitting) return;
     if (!resumeId) {
       setError(COPY.interviewNew.noResume);
       return;
@@ -153,6 +155,7 @@ export default function InterviewNewPage() {
       return;
     }
     setError(null);
+    setSubmitting(true);
     if (mode === "practice") setPhase("printing");
     try {
       const res = await fetch("/api/interview/create", {
@@ -185,6 +188,7 @@ export default function InterviewNewPage() {
       setError(COPY.interviewNew.createFailed);
     } finally {
       setPhase("form");
+      setSubmitting(false);
     }
   }
 
@@ -242,7 +246,7 @@ export default function InterviewNewPage() {
             <div className="mt-8 space-y-8">
               {/* 第零步 · 定模式 */}
               <section className="rounded-none border border-ink/15 bg-transparent">
-                <StepHeader label="定模式" title={copy.modeLabel} hint={copy.modeRealDesc} />
+                <StepHeader label={copy.modeSectionLabel} title={copy.modeLabel} hint={copy.modeRealDesc} />
                 <div className="grid grid-cols-1 gap-3 px-6 py-6 sm:grid-cols-2">
                   {(
                     [
@@ -445,7 +449,7 @@ export default function InterviewNewPage() {
 
               <Button
                 className="h-11 w-full rounded-none text-base"
-                disabled={busy}
+                disabled={busy || submitting}
                 onClick={() => void create()}
               >
                 {copy.submitButton}
