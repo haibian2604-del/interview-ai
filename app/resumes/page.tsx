@@ -17,6 +17,7 @@ type ResumeRow = {
   created_at: string;
   storage_path: string | null;
   structured_json: unknown;
+  name: string | null;
 };
 
 // 归档日期：等宽表格数字，印刷品节奏
@@ -40,12 +41,14 @@ function NewArchiveCard({
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [pasteText, setPasteText] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
     setFile(null);
     setPasteText("");
+    setName("");
     const input = document.getElementById("resume-file") as HTMLInputElement | null;
     if (input) input.value = "";
   }
@@ -61,6 +64,7 @@ function NewArchiveCard({
     try {
       const form = new FormData();
       form.append("file", file);
+      if (name.trim()) form.append("name", name.trim());
       const res = await fetch("/api/resume/parse", { method: "POST", body: form });
       if (!res.ok) {
         setError(
@@ -99,7 +103,7 @@ function NewArchiveCard({
       }
       const { error: insertError } = await supabase
         .from("resumes")
-        .insert({ user_id: data.user.id, raw_text: text });
+        .insert({ user_id: data.user.id, raw_text: text, name: name.trim() || null });
       if (insertError) {
         setError(COPY.resumes.pasteFailed);
         return;
@@ -126,8 +130,23 @@ function NewArchiveCard({
         <p className="text-sm leading-6 text-ink/60">{COPY.resumes.newArchiveHint}</p>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* 主入口：PDF 誊录 */}
+        {/* 命名（可选）：PDF 与粘贴共用，空 = 回落档案编号 */}
         <div className="space-y-2">
+          <label htmlFor="resume-name" className="block text-xs tracking-wide text-pencil">
+            {COPY.resumes.nameLabel}
+          </label>
+          <input
+            id="resume-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={COPY.resumes.namePlaceholder}
+            maxLength={100}
+            className="block w-full rounded-none border border-ink/20 bg-transparent px-2.5 py-2 text-sm focus-visible:border-ink-blue focus-visible:outline-none"
+          />
+        </div>
+
+        {/* 主入口：PDF 誊录 */}
+        <div className="space-y-2 border-t border-dashed border-ink/20 pt-5">
           <label
             htmlFor="resume-file"
             className="block text-xs tracking-wide text-pencil"
@@ -183,22 +202,49 @@ function ResumeCard({
   resume,
   no,
   onDeleted,
+  onRenamed,
   onError,
 }: {
   resume: ResumeRow;
   no: string;
   onDeleted: () => void;
+  onRenamed: () => void;
   onError: () => void;
 }) {
   const supabase = createSupabaseBrowserClient();
   const [expanded, setExpanded] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // 重命名：编辑态行内完成，空串 = 清除自命名回落档案编号
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
   // B12：画像已结构化的档案展示摘要 + 考察点，未结构化的维持「画像待生成」占位
   const profile = resumeProfilePreview(resume.structured_json);
   // 简历缩略（常显）：画像 summary 优先，raw_text 摘录兜底——不看展开就能知道档案大概内容
   const digest = resumeDigest(resume);
+
+  async function saveName() {
+    if (renameBusy) return;
+    const name = nameDraft.trim().slice(0, 100);
+    setRenameBusy(true);
+    try {
+      const { error } = await supabase
+        .from("resumes")
+        .update({ name: name || null })
+        .eq("id", resume.id);
+      if (error) {
+        onError();
+        return;
+      }
+      setEditingName(false);
+      onRenamed();
+    } catch {
+      onError();
+    } finally {
+      setRenameBusy(false);
+    }
+  }
 
   // 销档（B6）：先销索引行（ cascade 清面试记录），再尽力而为清 Storage 原件——
   // 顺序反过来会在行删除失败时留下「指向已删原件」的孤儿行
@@ -233,9 +279,62 @@ function ResumeCard({
 
   return (
     <li className="border border-ink/15 bg-transparent">
-      <div className="flex items-baseline justify-between border-b border-ink/15 px-5 py-4">
-        <span className="font-mono text-sm tracking-widest">{no}</span>
-        <span className="font-mono text-xs text-pencil">
+      <div className="flex items-baseline justify-between gap-3 border-b border-ink/15 px-5 py-4">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="shrink-0 font-mono text-sm tracking-widest">{no}</span>
+          {editingName ? (
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void saveName();
+                  if (e.key === "Escape") setEditingName(false);
+                }}
+                placeholder={COPY.resumes.namePlaceholder}
+                maxLength={100}
+                aria-label={COPY.resumes.renameLabel}
+                className="min-w-0 flex-1 rounded-none border border-ink/20 bg-transparent px-2 py-1 text-sm focus-visible:border-ink-blue focus-visible:outline-none"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-none text-pencil hover:text-ink"
+                disabled={renameBusy}
+                onClick={() => void saveName()}
+              >
+                {renameBusy ? COPY.resumes.renaming : COPY.resumes.renameSave}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-none text-pencil hover:text-ink"
+                disabled={renameBusy}
+                onClick={() => setEditingName(false)}
+              >
+                {COPY.resumes.renameCancel}
+              </Button>
+            </span>
+          ) : (
+            <>
+              {resume.name && (
+                <span className="min-w-0 truncate font-medium text-ink">{resume.name}</span>
+              )}
+              <button
+                type="button"
+                className="shrink-0 font-mono text-xs text-pencil underline decoration-ink/20 underline-offset-4 hover:text-ink"
+                onClick={() => {
+                  setNameDraft(resume.name ?? "");
+                  setEditingName(true);
+                }}
+              >
+                {resume.name ? COPY.resumes.renameLabel : COPY.resumes.nameAdd}
+              </button>
+            </>
+          )}
+        </div>
+        <span className="shrink-0 font-mono text-xs text-pencil">
           {COPY.resumes.dateLabel} {formatDate(resume.created_at)}
         </span>
       </div>
@@ -316,7 +415,7 @@ export default function ResumesPage() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("resumes")
-      .select("id, created_at, storage_path, structured_json")
+      .select("id, created_at, storage_path, structured_json, raw_text, name")
       .order("created_at", { ascending: true });
     if (error) {
       setListError(COPY.resumes.loadFailed);
@@ -331,7 +430,7 @@ export default function ResumesPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("resumes")
-        .select("id, created_at, storage_path, structured_json, raw_text")
+        .select("id, created_at, storage_path, structured_json, raw_text, name")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) {
@@ -413,6 +512,7 @@ export default function ResumesPage() {
                     resume={resume}
                     no={`${COPY.resumes.archiveNoPrefix} ${archiveNo(resumes.length - 1 - i)}`}
                     onDeleted={() => void load()}
+                    onRenamed={() => void load()}
                     onError={() => setListError(COPY.resumes.deleteFailed)}
                   />
                 ))}

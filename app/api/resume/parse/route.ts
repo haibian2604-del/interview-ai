@@ -19,6 +19,9 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: COPY.api.missingFileField }, { status: 400 });
   }
+  // 用户自命名（可选）：空/缺省 = null，展示层回落档案编号
+  const nameRaw = form.get("name");
+  const name = typeof nameRaw === "string" && nameRaw.trim() ? nameRaw.trim().slice(0, 100) : null;
   if (file.type !== "application/pdf") {
     return NextResponse.json({ error: COPY.api.pdfOnly }, { status: 400 });
   }
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
   }
   const { data, error } = await supabase
     .from("resumes")
-    .insert({ user_id: user.id, storage_path: path, raw_text: rawText })
+    .insert({ user_id: user.id, storage_path: path, raw_text: rawText, name })
     .select("id")
     .single();
   if (error) {
