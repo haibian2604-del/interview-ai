@@ -160,7 +160,9 @@ export async function POST(request: Request) {
     if (error) {
       return serverErrorResponse("[interview/answer] mark completed failed:", error.message, 500);
     }
-  } else if (next.action === "next_question" && interview.mode !== "real") {
+  } else if (next.action === "next_question") {
+    // real 与 practice 同一推进语义：先把 index 指向尚未生成的下一题空位，
+    // 恢复链路靠「currentIndex >= 已生成题数」确定性派生待生成状态
     const { error } = await supabase
       .from("interviews")
       .update({ current_question_index: idx + 1 })

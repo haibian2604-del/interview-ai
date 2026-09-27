@@ -46,8 +46,9 @@ export async function POST(
     return NextResponse.json({ error: COPY.interview.notInProgress }, { status: 409 });
   }
 
-  const idx = interview.current_question_index;
-  const nextIdx = idx + 1;
+  // 计划模型：answer 推进 current_question_index 指向待生成的空位（题目行尚不存在），
+  // 本路由只负责把题行落到该位 + 维护 question_count，不碰 index
+  const nextIdx = interview.current_question_index;
 
   // 竞态/重试兜底：该题已存在（唯一索引）→ 不重复生成不重复落盘
   const { data: existing } = await supabase
@@ -57,9 +58,12 @@ export async function POST(
     .eq("idx", nextIdx)
     .maybeSingle();
   if (existing) {
-    const advanced = await advanceInterview(supabase, interviewId, nextIdx);
-    if (advanced) {
-      return serverErrorResponse("[interview/next-question] advance on duplicate failed:", advanced.message, 500);
+    const { error: countError } = await supabase
+      .from("interviews")
+      .update({ question_count: nextIdx + 1 })
+      .eq("id", interviewId);
+    if (countError) {
+      return serverErrorResponse("[interview/next-question] update question_count failed:", countError.message, 500);
     }
     const meta = { idx: nextIdx, skillTag: existing.skill_tag, content: existing.content };
     return NextResponse.json(
@@ -76,7 +80,8 @@ export async function POST(
       .select("content, skill_tag")
       .eq("interview_id", interviewId)
       .order("idx");
-    // 最近一轮问答（顺延候选人暴露的点深挖）：最后一条候选人消息
+    // 最近一轮问答（顺延候选人暴露的点深挖）：最后一条候选人消息；
+    // 刚答完的题在 nextIdx - 1（index 已被 answer 推进过）
     const { data: lastCandidate } = await supabase
       .from("messages")
       .select("content")
@@ -91,7 +96,7 @@ export async function POST(
       position: interview.position,
       askedQuestions: (askedRows ?? []).map((q) => ({ content: q.content, skillTag: q.skill_tag })),
       lastExchange: lastCandidate
-        ? { question: (askedRows ?? [])[idx]?.content ?? "", answer: lastCandidate.content }
+        ? { question: (askedRows ?? [])[nextIdx - 1]?.content ?? "", answer: lastCandidate.content }
         : undefined,
     });
   } catch (e) {
@@ -120,9 +125,12 @@ export async function POST(
         .eq("idx", nextIdx)
         .single();
       if (row) {
-        const advanced = await advanceInterview(supabase, interviewId, nextIdx);
-        if (advanced) {
-          return serverErrorResponse("[interview/next-question] advance on duplicate failed:", advanced.message, 500);
+        const { error: countError } = await supabase
+          .from("interviews")
+          .update({ question_count: nextIdx + 1 })
+          .eq("id", interviewId);
+        if (countError) {
+          return serverErrorResponse("[interview/next-question] update question_count failed:", countError.message, 500);
         }
         const meta = { idx: nextIdx, skillTag: row.skill_tag, content: row.content };
         return NextResponse.json(
@@ -134,11 +142,12 @@ export async function POST(
     return serverErrorResponse("[interview/next-question] insert question failed:", insertError.message, 500);
   }
 
-  // real 模式索引推进的唯一入口（answer 的 real 分支不推进）：落题即指向新题，
-  // 保证下一轮 answer 按新题落账；question_count 与推进同事务语义一次性更新
-  const advanceError = await advanceInterview(supabase, interviewId, nextIdx);
-  if (advanceError) {
-    return serverErrorResponse("[interview/next-question] advance interview failed:", advanceError.message, 500);
+  const { error: countError } = await supabase
+    .from("interviews")
+    .update({ question_count: nextIdx + 1 })
+    .eq("id", interviewId);
+  if (countError) {
+    return serverErrorResponse("[interview/next-question] update question_count failed:", countError.message, 500);
   }
 
   let result: Awaited<ReturnType<typeof streamInterviewer>>;
@@ -174,20 +183,4 @@ export async function POST(
       "X-Question-Meta": encodeURIComponent(JSON.stringify(meta)),
     },
   });
-}
-
-/**
- * 落题后的面试行推进（question_count + current_question_index 一次更新）。
- * 幂等：duplicate 兜底路径与主路径可能重复执行，写入值相同无副作用。
- */
-async function advanceInterview(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  interviewId: string,
-  nextIdx: number,
-) {
-  const { error } = await supabase
-    .from("interviews")
-    .update({ question_count: nextIdx + 1, current_question_index: nextIdx })
-    .eq("id", interviewId);
-  return error;
 }
