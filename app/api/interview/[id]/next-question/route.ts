@@ -41,7 +41,12 @@ export async function POST(
   }
 
   // 双重检查终止规则（answer 已查过一次；这里是竞态兜底——已该收尾时不再生成新题）
-  const composites = await loadCompositeScores(supabase, interviewId);
+  let composites;
+  try {
+    composites = await loadCompositeScores(supabase, interviewId);
+  } catch (e) {
+    return serverErrorResponse("[interview/next-question] load composite scores failed:", e, 500);
+  }
   if (checkTermination(composites).terminate) {
     return NextResponse.json({ error: COPY.interview.notInProgress }, { status: 409 });
   }

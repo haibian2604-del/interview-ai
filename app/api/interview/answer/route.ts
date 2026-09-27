@@ -136,7 +136,12 @@ export async function POST(request: Request) {
   let next: NextAction;
   let endEarly = false;
   if (interview.mode === "real") {
-    const composites = await loadCompositeScores(supabase, interviewId);
+    let composites;
+    try {
+      composites = await loadCompositeScores(supabase, interviewId);
+    } catch (e) {
+      return serverErrorResponse("[interview/answer] load composite scores failed:", e, 500);
+    }
     const real = decideRealNextAction({
       score: averageScore(evaluation.scores),
       followupCount,
