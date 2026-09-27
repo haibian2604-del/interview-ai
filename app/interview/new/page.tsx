@@ -120,6 +120,7 @@ export default function InterviewNewPage() {
   const [jdText, setJdText] = useState("");
   const [interviewType, setInterviewType] = useState<InterviewType>("mixed");
   const [count, setCount] = useState(COUNT_DEFAULT);
+  const [mode, setMode] = useState<"practice" | "real">("practice");
   const [phase, setPhase] = useState<Phase>("form");
   const [error, setError] = useState<string | null>(null);
 
@@ -152,7 +153,7 @@ export default function InterviewNewPage() {
       return;
     }
     setError(null);
-    setPhase("printing");
+    if (mode === "practice") setPhase("printing");
     try {
       const res = await fetch("/api/interview/create", {
         method: "POST",
@@ -163,6 +164,7 @@ export default function InterviewNewPage() {
           jdText: jdText.trim() || undefined,
           interviewType,
           questionCount: count,
+          mode,
         }),
       });
       const payload = (await res.json().catch(() => null)) as
@@ -238,6 +240,36 @@ export default function InterviewNewPage() {
             )}
 
             <div className="mt-8 space-y-8">
+              {/* 第零步 · 定模式 */}
+              <section className="rounded-none border border-ink/15 bg-transparent">
+                <StepHeader label="定模式" title={copy.modeLabel} hint={copy.modeRealDesc} />
+                <div className="grid grid-cols-1 gap-3 px-6 py-6 sm:grid-cols-2">
+                  {(
+                    [
+                      { value: "practice", name: copy.modePracticeName, desc: copy.modePracticeDesc },
+                      { value: "real", name: copy.modeRealName, desc: copy.modeRealDesc },
+                    ] as const
+                  ).map((option) => {
+                    const selected = mode === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={busy}
+                        onClick={() => setMode(option.value)}
+                        className={`rounded-none border px-4 py-4 text-left transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
+                          selected ? "border-ink bg-ink/[0.04]" : "border-ink/15 hover:border-ink/40"
+                        }`}
+                      >
+                        <p className="font-heading text-lg font-semibold">{option.name}</p>
+                        <p className="mt-1.5 text-xs leading-5 text-pencil">{option.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
               {/* 第一步 · 调卷：档案卡选择 */}
               <section className="rounded-none border border-ink/15 bg-transparent">
                 <StepHeader label={copy.stepOneLabel} title={copy.stepOneTitle} hint={copy.stepOneHint} />
@@ -340,74 +372,76 @@ export default function InterviewNewPage() {
                 </div>
               </section>
 
-              {/* 第三步 · 定题：题型勾选 + 题量 */}
-              <section className="rounded-none border border-ink/15 bg-transparent">
-                <StepHeader label={copy.stepThreeLabel} title={copy.stepThreeTitle} hint={copy.countHint} />
-                <div className="space-y-5 px-6 py-6">
-                  <div className="space-y-2">
-                    <p className="text-xs tracking-wide text-pencil">{copy.typeLabel}</p>
-                    <div className="flex flex-wrap gap-3">
-                      {TYPE_OPTIONS.map((option) => {
-                        const selected = interviewType === option.value;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            aria-pressed={selected}
-                            disabled={busy}
-                            onClick={() => setInterviewType(option.value)}
-                            className={`flex items-center gap-2 rounded-none border px-3 py-2 text-sm transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
-                              selected
-                                ? "border-ink bg-ink/[0.04]"
-                                : "border-ink/20 hover:border-ink/40"
-                            }`}
-                          >
-                            <span
-                              aria-hidden
-                              className={`flex size-3.5 shrink-0 items-center justify-center border ${
-                                selected ? "border-ink bg-ink" : "border-ink/40"
+              {/* 第三步 · 定题：题型勾选 + 题量（仅练习试卷） */}
+              {mode === "practice" && (
+                <section className="rounded-none border border-ink/15 bg-transparent">
+                  <StepHeader label={copy.stepThreeLabel} title={copy.stepThreeTitle} hint={copy.countHint} />
+                  <div className="space-y-5 px-6 py-6">
+                    <div className="space-y-2">
+                      <p className="text-xs tracking-wide text-pencil">{copy.typeLabel}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {TYPE_OPTIONS.map((option) => {
+                          const selected = interviewType === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={selected}
+                              disabled={busy}
+                              onClick={() => setInterviewType(option.value)}
+                              className={`flex items-center gap-2 rounded-none border px-3 py-2 text-sm transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
+                                selected
+                                  ? "border-ink bg-ink/[0.04]"
+                                  : "border-ink/20 hover:border-ink/40"
                               }`}
-                            />
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {interviewType === "mixed" && (
-                      <p className="text-xs leading-5 text-pencil">{copy.typeMixedHint}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs tracking-wide text-pencil">{copy.countLabel}</p>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center rounded-none border border-ink/20">
-                        <button
-                          type="button"
-                          aria-label={copy.countDecrease}
-                          disabled={busy || count <= COUNT_MIN}
-                          onClick={() => setCount((c) => Math.max(COUNT_MIN, c - 1))}
-                          className="px-3 py-2 font-mono text-sm text-ink/70 hover:text-ink disabled:opacity-30 focus-visible:border-ink-blue focus-visible:outline-none"
-                        >
-                          −
-                        </button>
-                        <span aria-live="polite" className="w-12 text-center font-mono text-sm">
-                          {count}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={copy.countIncrease}
-                          disabled={busy || count >= COUNT_MAX}
-                          onClick={() => setCount((c) => Math.min(COUNT_MAX, c + 1))}
-                          className="px-3 py-2 font-mono text-sm text-ink/70 hover:text-ink disabled:opacity-30 focus-visible:border-ink-blue focus-visible:outline-none"
-                        >
-                          +
-                        </button>
+                            >
+                              <span
+                                aria-hidden
+                                className={`flex size-3.5 shrink-0 items-center justify-center border ${
+                                  selected ? "border-ink bg-ink" : "border-ink/40"
+                                }`}
+                              />
+                              {option.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <span className="font-mono text-xs text-pencil">{copy.countHint}</span>
+                      {interviewType === "mixed" && (
+                        <p className="text-xs leading-5 text-pencil">{copy.typeMixedHint}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs tracking-wide text-pencil">{copy.countLabel}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center rounded-none border border-ink/20">
+                          <button
+                            type="button"
+                            aria-label={copy.countDecrease}
+                            disabled={busy || count <= COUNT_MIN}
+                            onClick={() => setCount((c) => Math.max(COUNT_MIN, c - 1))}
+                            className="px-3 py-2 font-mono text-sm text-ink/70 hover:text-ink disabled:opacity-30 focus-visible:border-ink-blue focus-visible:outline-none"
+                          >
+                            −
+                          </button>
+                          <span aria-live="polite" className="w-12 text-center font-mono text-sm">
+                            {count}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={copy.countIncrease}
+                            disabled={busy || count >= COUNT_MAX}
+                            onClick={() => setCount((c) => Math.min(COUNT_MAX, c + 1))}
+                            className="px-3 py-2 font-mono text-sm text-ink/70 hover:text-ink disabled:opacity-30 focus-visible:border-ink-blue focus-visible:outline-none"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <span className="font-mono text-xs text-pencil">{copy.countHint}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              )}
 
               <Button
                 className="h-11 w-full rounded-none text-base"

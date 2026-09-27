@@ -105,6 +105,11 @@ export const COPY = {
     headerTitle: "新建面试",
     headerHint:
       "三步登记：调卷、报岗、定题。登记完毕，考官依卷出题，约需 10-30 秒。",
+    modeLabel: "面试模式",
+    modePracticeName: "练习试卷",
+    modePracticeDesc: "自选题型与题量，一次性出卷，逐题作答",
+    modeRealName: "真实面试",
+    modeRealDesc: "综合题型 · 目标 10 题 · 考官按你的回答渐进出题，表现低迷会提前收尾",
     stepOneLabel: "第一步 · 调卷",
     stepOneTitle: "选择简历档案",
     stepOneHint: "从档案库调出一份简历，考官将依此卷出题。",
