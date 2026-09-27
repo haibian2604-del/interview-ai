@@ -81,14 +81,16 @@ export function toAgentRole(role: string): AgentRole {
 }
 
 /**
- * 本题的追问轮计数（C1 回归收口）：状态机契约是「本题未追问过才追问」
- * （state-machine.ts），必须按当前题的 question_id 过滤，绝不能用全场 followup 行数
- * ——全场计数会让任一题追问过后架空其后所有题的追问，也会污染 role 判定。
+ * 本题候选人已作答轮数（C1 状态机契约的数据源：「本题未追问过才追问」）。
+ * 第 2 轮起即为追问轮回答，所以已答轮数 = 已耗尽的追问预算。
+ * 同时数 role=candidate 与 role=followup（后者是追问轮回答的落盘角色，UI 徽章同源）；
+ * 兼容旧数据：若历史卷面因计数 bug 出现同题多轮作答，预算视为已耗尽（自愈，不再追问）。
  */
-export function questionFollowupCount(
+export function candidateTurnCount(
   rows: { role: string; question_id: string | null }[],
   questionId: string,
 ): number {
-  return rows.filter((r) => r.role === "followup" && r.question_id === questionId)
-    .length;
+  return rows.filter(
+    (r) => (r.role === "candidate" || r.role === "followup") && r.question_id === questionId,
+  ).length;
 }

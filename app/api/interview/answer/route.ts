@@ -6,7 +6,7 @@ import { averageScore, decideNextAction, type NextAction } from "@/lib/orchestra
 import { decideRealNextAction } from "@/lib/orchestrator/real-mode";
 import { loadCompositeScores } from "@/lib/interview/scores";
 import type { Evaluation } from "@/lib/ai/schemas";
-import { rowToQuestion, questionFollowupCount, toAgentRole, type AgentRole } from "@/lib/interview/mappers";
+import { rowToQuestion, candidateTurnCount, toAgentRole, type AgentRole } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
 import { COPY } from "@/lib/copy";
 import { serverErrorResponse } from "@/lib/api/server-error";
@@ -74,14 +74,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
   }
 
-  // C1：按「本题」计追问轮（状态机契约），不能用全场 followup 行数
-  const followupCount = questionFollowupCount(history ?? [], question.id);
+  // C1：按「本题」计候选人已作答轮——它就是已耗尽的追问预算（状态机契约：本题未追问过才追问）。
+  // 本条消息的落盘角色与之同源：第 2 轮起即为追问轮回答（role=followup，UI 追问徽章同源）。
+  // 旧实现数 role=followup 行再决定本行 role，而全库唯一的 followup 写入方就是本插入——
+  // 自引用死锁恒 0，弱回答会无限追问（线上实锤）。
+  const candidateTurns = candidateTurnCount(history ?? [], question.id);
   const { data: insertedMessage, error: candidateInsertError } = await supabase
     .from("messages")
     .insert({
       interview_id: interviewId,
       question_id: question.id,
-      role: followupCount > 0 ? "followup" : "candidate",
+      role: candidateTurns > 0 ? "followup" : "candidate",
       content: answer,
     })
     .select("id")
@@ -144,7 +147,7 @@ export async function POST(request: Request) {
     }
     const real = decideRealNextAction({
       score: averageScore(evaluation.scores),
-      followupCount,
+      followupCount: candidateTurns,
       composites,
       target: interview.target_questions,
     });
@@ -153,7 +156,7 @@ export async function POST(request: Request) {
   } else {
     next = decideNextAction({
       score: averageScore(evaluation.scores),
-      followupCount,
+      followupCount: candidateTurns,
       isLastQuestion: idx === interview.question_count - 1,
     });
   }

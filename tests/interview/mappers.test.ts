@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decideNextAction } from "@/lib/orchestrator/state-machine";
 import {
   deriveChatMessages,
-  questionFollowupCount,
+  candidateTurnCount,
   rowToQuestion,
   toAgentRole,
 } from "@/lib/interview/mappers";
@@ -93,7 +93,7 @@ describe("deriveChatMessages（卷面还原）", () => {
   });
 });
 
-describe("questionFollowupCount（C1 回归：按本题计数，非全场）", () => {
+describe("candidateTurnCount（C1 回归：已答轮数=已耗尽的追问预算，按本题计数）", () => {
   const rows = [
     { role: "interviewer", content: "第一题", question_id: "q1" },
     { role: "candidate", content: "首答", question_id: "q1" },
@@ -102,14 +102,30 @@ describe("questionFollowupCount（C1 回归：按本题计数，非全场）", (
     { role: "interviewer", content: "转场 + 第二题", question_id: "q1" },
   ];
 
-  it("Q1 已追问：本题计数为 1，Q2 计数为 0", () => {
-    expect(questionFollowupCount(rows, "q1")).toBe(1);
-    expect(questionFollowupCount(rows, "q2")).toBe(0);
+  it("Q1 已答 2 轮（candidate+followup 同源计数），Q2 计数为 0", () => {
+    expect(candidateTurnCount(rows, "q1")).toBe(2);
+    expect(candidateTurnCount(rows, "q2")).toBe(0);
   });
 
-  it("同题追问过一次后不再追问（每题最多 1 次）", () => {
+  it("首答未落盘时预算未动（可追问）；首答之后预算即耗尽（不再追问）", () => {
+    const beforeFirstAnswer = rows.slice(0, 1); // 只有问题，尚无任何作答
     expect(
-      decideNextAction({ score: 0.3, followupCount: questionFollowupCount(rows, "q1"), isLastQuestion: false }),
+      decideNextAction({ score: 0.3, followupCount: candidateTurnCount(beforeFirstAnswer, "q1"), isLastQuestion: false }),
+    ).toEqual({ action: "followup" });
+    const afterFirstAnswer = rows.slice(0, 2); // 问题 + 首答
+    expect(
+      decideNextAction({ score: 0.3, followupCount: candidateTurnCount(afterFirstAnswer, "q1"), isLastQuestion: false }),
+    ).toEqual({ action: "next_question" });
+  });
+
+  it("旧数据自愈：同题多轮作答（计数 bug 期间落盘）预算视为耗尽", () => {
+    const broken = [
+      { role: "candidate", content: "答1", question_id: "q3" },
+      { role: "candidate", content: "答2", question_id: "q3" },
+      { role: "candidate", content: "答3", question_id: "q3" },
+    ];
+    expect(
+      decideNextAction({ score: 0.2, followupCount: candidateTurnCount(broken, "q3"), isLastQuestion: false }),
     ).toEqual({ action: "next_question" });
   });
 });
