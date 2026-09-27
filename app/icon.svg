@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 面镜 Mirror · 考官评分簿世界：纸白底 / 黑墨镜 / 蓝墨所见 / 红墨批改章 -->
+  <!-- 纸白卷面 -->
+  <rect width="512" height="512" fill="#fbfaf7"/>
+  <!-- 卷面 hairline 内框（方角） -->
+  <rect x="26" y="26" width="460" height="460" fill="none" stroke="#21201d" stroke-opacity="0.28" stroke-width="5"/>
+
+  <!-- 镜子：竖椭圆双线框（印刷黑墨） -->
+  <ellipse cx="248" cy="230" rx="118" ry="150" fill="#ffffff" stroke="#21201d" stroke-width="16"/>
+  <ellipse cx="248" cy="230" rx="92" ry="124" fill="none" stroke="#21201d" stroke-opacity="0.35" stroke-width="5"/>
+
+  <!-- 镜中所见：蓝墨手写问号（你要回答的问题） -->
+  <path d="M204 196
+           C204 152 292 150 292 196
+           C292 232 248 236 248 272
+           L248 288"
+        fill="none" stroke="#2b4acb" stroke-width="21" stroke-linecap="round"/>
+  <circle cx="248" cy="330" r="13" fill="#2b4acb"/>
+
+  <!-- 红批改章：双线方章、微倾（呼应面试页 ScoreStamp） -->
+  <g transform="rotate(-8 396 396)">
+    <rect x="336" y="336" width="120" height="120" fill="#fbfaf7"/>
+    <rect x="342" y="342" width="108" height="108" fill="none" stroke="#a63a2f" stroke-width="9"/>
+    <rect x="358" y="358" width="76" height="76" fill="none" stroke="#a63a2f" stroke-width="4"/>
+    <path d="M378 398 L394 414 L418 380"
+          fill="none" stroke="#a63a2f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
