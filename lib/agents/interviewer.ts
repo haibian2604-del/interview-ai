@@ -7,7 +7,7 @@ import type { Question } from "@/lib/ai/schemas";
 export const INTERVIEWER_PERSONA =
   "你是一位专业、友好的中文面试官。语气自然口语化，一次只问一个问题，不透露评分标准，不替候选人回答。";
 
-type InterviewerMode = "ask" | "followup" | "transition";
+type InterviewerMode = "ask" | "followup" | "transition" | "comment";
 
 export function buildInterviewerMessages(
   mode: InterviewerMode,
@@ -31,6 +31,11 @@ export function buildInterviewerMessages(
     messages.push({ role: "user", content: `请向候选人提出这道题：${payload.question.content}` });
   } else if (mode === "followup") {
     messages.push({ role: "user", content: `用你自己的话向候选人追问（不要逐字念）：${payload.followupText}` });
+  } else if (mode === "comment") {
+    messages.push({
+      role: "user",
+      content: "简短点评候选人上一题的回答（一两句，不透露评分标准），然后自然收住。不要提出新问题。",
+    });
   } else {
     messages.push({
       role: "user",

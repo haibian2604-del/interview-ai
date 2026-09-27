@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { streamInterviewer } from "@/lib/agents/interviewer";
+import { generateNextQuestion } from "@/lib/agents/question-setter";
+import { loadInterviewProfile } from "@/lib/interview/profile";
+import type { Question, ResumeProfile } from "@/lib/ai/schemas";
 import { rowToQuestion } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
 import { COPY } from "@/lib/copy";
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
 
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, status, current_question_index, question_count")
+    .select("id, status, current_question_index, question_count, mode, resume_id, position, jd_text")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: COPY.interview.notInProgress }, { status: 409 });
   }
 
-  const { data: question, error: questionError } = await supabase
+  const { data: loadedQuestion, error: questionError } = await supabase
     .from("questions")
     .select("*")
     .eq("interview_id", interviewId)
@@ -75,6 +78,62 @@ export async function POST(request: Request) {
   if (questionError) {
     return serverErrorResponse("[interview/start] load question failed:", questionError.message, 500);
   }
+  let question = loadedQuestion;
+
+  // 真实面试：首题现场生成（ready 且题库为空时）。并发双开场靠 questions(interview_id, idx)
+  // 唯一索引兜底：后到方 insert 23505 后改读已有行。
+  if (interview.mode === "real" && !question) {
+    if (interview.status !== "ready") {
+      return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
+    }
+    // 画像分析与出题都会调 LLM：失败走 502 统一出口（原始错误只进日志），不让路由裸抛
+    let profile: ResumeProfile;
+    let generated: Question;
+    try {
+      profile = await loadInterviewProfile(supabase, user.id, interview.resume_id);
+      generated = await generateNextQuestion(user.id, {
+        profile,
+        jdText: interview.jd_text ?? "",
+        position: interview.position,
+        askedQuestions: [],
+      });
+    } catch (e) {
+      return serverErrorResponse("[interview/start] generate first question failed:", e, 502);
+    }
+    const { data: inserted, error: insertError } = await supabase
+      .from("questions")
+      .insert({
+        interview_id: interviewId,
+        idx: 0,
+        content: generated.content,
+        type: generated.type,
+        skill_tag: generated.skillTag,
+        followup_anchor: generated.followupAnchor,
+      })
+      .select("*")
+      .single();
+    // 唯一索引兜底：并发双开场时后到方读已有行
+    const row = inserted ?? (
+      await supabase
+        .from("questions")
+        .select("*")
+        .eq("interview_id", interviewId)
+        .eq("idx", 0)
+        .single()
+    ).data;
+    if (!row) {
+      return serverErrorResponse("[interview/start] insert first question failed:", insertError?.message ?? "no row", 500);
+    }
+    const { error: countError } = await supabase
+      .from("interviews")
+      .update({ question_count: 1 })
+      .eq("id", interviewId);
+    if (countError) {
+      return serverErrorResponse("[interview/start] update question_count failed:", countError.message, 500);
+    }
+    question = row;
+  }
+
   if (!question) {
     return NextResponse.json({ error: COPY.api.questionNotFound }, { status: 404 });
   }

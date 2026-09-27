@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { repairTruncatedJson, salvageQuestionSet } from "@/lib/ai/json-salvage";
+import {
+  repairTruncatedJson,
+  salvageQuestionSet,
+  salvageSingleQuestion,
+} from "@/lib/ai/json-salvage";
 
 describe("repairTruncatedJson", () => {
   it("完整 JSON 原样返回", () => {
@@ -133,5 +137,15 @@ describe("salvageQuestionSet", () => {
   it("无法解析或无任何完整题 → undefined", () => {
     expect(salvageQuestionSet("不是 JSON")).toBeUndefined();
     expect(salvageQuestionSet('{"foo":"bar"}')).toBeUndefined();
+  });
+});
+
+describe("salvageSingleQuestion", () => {
+  it("从病态结构收割第一道完整题", () => {
+    const q = salvageSingleQuestion('{"questions":[{"content":"题1","type":"project","skillTag":"A","followupAnchor":"F"}]}');
+    expect(q?.content).toBe("题1");
+  });
+  it("收割不到 → undefined", () => {
+    expect(salvageSingleQuestion('{"foo":1}')).toBeUndefined();
   });
 });

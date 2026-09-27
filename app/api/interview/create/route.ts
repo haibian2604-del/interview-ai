@@ -4,6 +4,7 @@ import { analyzeResume } from "@/lib/agents/resume-analyst";
 import { generateQuestions } from "@/lib/agents/question-setter";
 import type { ResumeProfile } from "@/lib/ai/schemas";
 import { clampQuestionCount } from "@/lib/interview/count";
+import { parseMode } from "@/lib/orchestrator/real-mode";
 import { COPY } from "@/lib/copy";
 import { serverErrorResponse } from "@/lib/api/server-error";
 
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
     jdText?: string;
     interviewType: "skill" | "project" | "behavioral" | "mixed";
     questionCount?: number;
+    mode?: unknown;
   };
   // B3：非法 body 兜底 400（对齐 answer/start 先例）
   try {
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
   }
   // 服务端钳制：请求值不可信，题库对账以落库事实为准（见 lib/interview/count.ts）
   const count = clampQuestionCount(body.questionCount);
+  const mode = parseMode(body.mode);
   const supabase = await createSupabaseServerClient();
 
   const { data: resume } = await supabase
@@ -49,14 +52,20 @@ export async function POST(request: Request) {
       resume_id: resume.id,
       position: body.position,
       jd_text: body.jdText ?? null,
-      interview_type: body.interviewType,
-      question_count: count,
-      status: "generating",
+      interview_type: mode === "real" ? "mixed" : body.interviewType,
+      question_count: mode === "real" ? 0 : count,
+      status: mode === "real" ? "ready" : "generating",
+      mode,
     })
     .select("id")
     .single();
   if (error) {
     return serverErrorResponse("[interview/create] insert interview failed:", error.message, 500);
+  }
+
+  // 真实面试：不出卷不建题库，第一题由 start 现场生成（考官「翻档案」的开场感）
+  if (mode === "real") {
+    return NextResponse.json({ interviewId: interview.id });
   }
 
   try {

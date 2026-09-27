@@ -106,3 +106,14 @@ export function salvageQuestionSet(text: string): Record<string, unknown> | unde
   const found = collectQuestionLike(value).slice(0, 10);
   return found.length > 0 ? { questions: found } : undefined;
 }
+
+/** 单题版抢救：收割题目集合后取第一题（渐进出题 Agent 用）；收割不到返回 undefined */
+export function salvageSingleQuestion(
+  text: string,
+): Record<string, string> | undefined {
+  const set = salvageQuestionSet(text);
+  const questions = set?.questions;
+  return Array.isArray(questions) && questions.length > 0
+    ? (questions[0] as Record<string, string>)
+    : undefined;
+}

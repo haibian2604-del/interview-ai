@@ -53,6 +53,9 @@ export const COPY = {
     statusGenerating: "出卷中",
     statusDraft: "出卷失败",
     statusAbandoned: "缺考",
+    modeReal: "真实面试",
+    modePractice: "练习试卷",
+    earlyEndTemplate: "提前结束 · {n} 题",
     emptyTitle: "尚未开卷",
     emptyHint: "评分簿还是空白册。登记第一场模拟面试，考官依你的简历出题批改。",
     emptyButton: "创建第一场模拟面试",
@@ -104,7 +107,13 @@ export const COPY = {
     headerLabel: "考前登记表 · 开卷登记",
     headerTitle: "新建面试",
     headerHint:
-      "三步登记：调卷、报岗、定题。登记完毕，考官依卷出题，约需 10-30 秒。",
+      "先定模式：真实面试或练习试卷。再调卷、报岗、定题；登记完毕，考官依卷出题，约需 10-30 秒。",
+    modeSectionLabel: "定模式",
+    modeLabel: "面试模式",
+    modePracticeName: "练习试卷",
+    modePracticeDesc: "自选题型与题量，一次性出卷，逐题作答",
+    modeRealName: "真实面试",
+    modeRealDesc: "综合题型 · 目标 10 题 · 考官按你的回答渐进出题，表现低迷会提前收尾",
     stepOneLabel: "第一步 · 调卷",
     stepOneTitle: "选择简历档案",
     stepOneHint: "从档案库调出一份简历，考官将依此卷出题。",
@@ -220,6 +229,9 @@ export const COPY = {
     coachSummaryLabel: "总结",
     coachStrengthsLabel: "优势",
     coachImprovementsLabel: "改进",
+    modeReal: "真实面试",
+    modePractice: "练习试卷",
+    earlyEndTemplate: "提前结束 · 实答 {n} 题 / 目标 10",
   },
   settings: {
     title: "装备单 · LLM 设置",
@@ -299,6 +311,12 @@ export const COPY = {
     stopAndTranscribe: "结束并转写",
     cancelRecording: "放弃",
     transcribing: "转写中……",
+  },
+  /** 真实面试模式：现场接续出题的前端文案（提前结束文案见 dashboard/report 段的 earlyEndTemplate） */
+  realMode: {
+    loadingNext: "考官翻阅你的档案……",
+    nextFailed: "下一题生成失败",
+    retry: "继续",
   },
   /** API 路由响应体错误文案的唯一来源：路由层不写中文硬编码 */
   api: {

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { evaluateAnswer } from "@/lib/agents/evaluator";
 import { streamInterviewer } from "@/lib/agents/interviewer";
-import { averageScore, decideNextAction } from "@/lib/orchestrator/state-machine";
+import { averageScore, decideNextAction, type NextAction } from "@/lib/orchestrator/state-machine";
+import { decideRealNextAction } from "@/lib/orchestrator/real-mode";
+import { loadCompositeScores } from "@/lib/interview/scores";
 import type { Evaluation } from "@/lib/ai/schemas";
 import { rowToQuestion, questionFollowupCount, toAgentRole, type AgentRole } from "@/lib/interview/mappers";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, status, current_question_index, question_count")
+    .select("id, status, current_question_index, question_count, mode")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -130,12 +132,30 @@ export async function POST(request: Request) {
     return serverErrorResponse("[interview/answer] upsert evaluation failed:", upsertError.message, 500);
   }
 
-  // 编排器确定性决策（唯一事实来源）
-  const next = decideNextAction({
-    score: averageScore(evaluation.scores),
-    followupCount,
-    isLastQuestion: idx === interview.question_count - 1,
-  });
+  // 编排器确定性决策（唯一事实来源）。real 模式：追问优先于终止；结束只来自终止规则引擎。
+  let next: NextAction;
+  let endEarly = false;
+  if (interview.mode === "real") {
+    let composites;
+    try {
+      composites = await loadCompositeScores(supabase, interviewId);
+    } catch (e) {
+      return serverErrorResponse("[interview/answer] load composite scores failed:", e, 500);
+    }
+    const real = decideRealNextAction({
+      score: averageScore(evaluation.scores),
+      followupCount,
+      composites,
+    });
+    next = real.action;
+    endEarly = real.endEarly;
+  } else {
+    next = decideNextAction({
+      score: averageScore(evaluation.scores),
+      followupCount,
+      isLastQuestion: idx === interview.question_count - 1,
+    });
+  }
 
   if (next.action === "finish") {
     const { error } = await supabase
@@ -146,6 +166,8 @@ export async function POST(request: Request) {
       return serverErrorResponse("[interview/answer] mark completed failed:", error.message, 500);
     }
   } else if (next.action === "next_question") {
+    // real 与 practice 同一推进语义：先把 index 指向尚未生成的下一题空位，
+    // 恢复链路靠「currentIndex >= 已生成题数」确定性派生待生成状态
     const { error } = await supabase
       .from("interviews")
       .update({ current_question_index: idx + 1 })
@@ -161,7 +183,7 @@ export async function POST(request: Request) {
     history: [...agentHistory, { role: "candidate" as const, content: answer }],
     followupText: `针对回答的不足（${evaluation.improvements}），围绕追问锚点「${question.followup_anchor}」提出一个具体追问。`,
   };
-  if (next.action === "next_question") {
+  if (next.action === "next_question" && interview.mode !== "real") {
     const { data: nextQuestion, error: nextQuestionError } = await supabase
       .from("questions")
       .select("*")
@@ -176,11 +198,15 @@ export async function POST(request: Request) {
 
   let result: Awaited<ReturnType<typeof streamInterviewer>>;
   try {
-    result = await streamInterviewer(
-      user.id,
-      next.action === "followup" ? "followup" : "transition",
-      payload,
-    );
+    const interviewerMode =
+      next.action === "followup"
+        ? "followup"
+        : next.action === "finish"
+          ? "transition"
+          : interview.mode === "real"
+            ? "comment"
+            : "transition";
+    result = await streamInterviewer(user.id, interviewerMode, payload);
   } catch (e) {
     return serverErrorResponse("[interview/answer]", e, 502);
   }
@@ -209,6 +235,10 @@ export async function POST(request: Request) {
         scores: evaluation.scores,
         starCompleteness: evaluation.starCompleteness,
       }),
+      ...(interview.mode === "real" && next.action === "next_question"
+        ? { "X-Interview-Next": "generate" }
+        : {}),
+      ...(endEarly ? { "X-Interview-End": "early" } : {}),
     },
   });
 }
