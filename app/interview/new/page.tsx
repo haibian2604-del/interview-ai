@@ -14,7 +14,7 @@ import { resumeDigest } from "@/lib/resume/profile-preview";
 
 type ResumeRow = { id: string; created_at: string; structured_json: unknown; raw_text: string | null; name: string | null };
 type InterviewType = "skill" | "project" | "behavioral" | "mixed";
-type Phase = "form" | "printing";
+type Phase = "form" | "printing" | "binding";
 
 const TYPE_OPTIONS: { value: InterviewType; label: string }[] = [
   { value: "skill", label: COPY.interviewNew.typeSkill },
@@ -56,14 +56,33 @@ const PRINT_CSS = `
 .mirror-print-pulse { animation: mirror-print-pulse 1.4s ease-in-out infinite; }
 `;
 
-function PrintingPanel({ count }: { count: number }) {
+// 考官工作节拍：出卷调用的真实工序叙事，随时间递减节奏推进（最坏等待也不坠入静止）
+const STAGE_KEYS = [
+  "printingStageTune",
+  "printingStageProfile",
+  "printingStageCompose",
+  "printingStageTranscribe",
+  "printingStageBind",
+] as const;
+const STAGE_DELAYS_MS = [2500, 5000, 10000, 18000];
+
+function PrintingPanel({ count, done }: { count: number; done: boolean }) {
   const copy = COPY.interviewNew;
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    if (done) return;
+    const timers = STAGE_DELAYS_MS.map((ms, i) =>
+      window.setTimeout(() => setStage(i + 1), ms),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [done]);
   const rows = Array.from({ length: count }, (_, i) => i);
-  const rowStep = 0.45;
-  const bindingDelay = (count * rowStep + 0.6).toFixed(2);
+  // 浮现节奏封顶：题多也不让入场动画拖过 ~2.5s，等待期的活感交给节拍行与循环墨线
+  const rowStep = Math.min(0.45, 2.4 / Math.max(count, 1));
+  const stageKey = done ? STAGE_KEYS[STAGE_KEYS.length - 1] : STAGE_KEYS[stage];
   return (
     <section
-      aria-busy="true"
+      aria-busy={!done}
       aria-live="polite"
       className="rounded-none border border-ink/15 bg-transparent"
     >
@@ -90,18 +109,41 @@ function PrintingPanel({ count }: { count: number }) {
               className="mirror-print-line h-px flex-1 origin-left bg-ink/50"
               style={{ animationDelay: `${(i * rowStep + 0.15).toFixed(2)}s` }}
             />
-            <span className="mirror-print-pulse shrink-0 font-mono text-xs text-pencil">
-              {copy.printingRowWriting}
-            </span>
+            {!done && (
+              <span className="mirror-print-pulse shrink-0 font-mono text-xs text-pencil">
+                {copy.printingRowWriting}
+              </span>
+            )}
           </li>
         ))}
+        {/* 节拍行：等待期=当前工序+循环墨线；成卷=墨线落定、黑章盖下（本页 focal moment） */}
         <li
           className="mirror-print-row flex items-center gap-4 pt-2"
-          style={{ animationDelay: `${bindingDelay}s` }}
+          style={{ animationDelay: `${(count * rowStep).toFixed(2)}s` }}
         >
-          <span className="font-mono text-xs tracking-widest text-pencil">
-            {copy.printingBinding}
+          <span
+            className={`w-28 shrink-0 font-mono text-xs tracking-widest ${
+              done ? "text-ink" : "text-pencil"
+            }`}
+          >
+            {done ? copy.printingBinding : copy[stageKey]}
           </span>
+          <span
+            aria-hidden
+            className={`h-px flex-1 origin-left bg-ink/50 ${
+              done ? "" : "mirror-print-cycle"
+            }`}
+          />
+          {done && (
+            <span
+              aria-hidden
+              className="mirror-stamp-in inline-block shrink-0 -rotate-2 border-2 border-ink p-1"
+            >
+              <span className="block border border-ink/50 px-2.5 py-1.5 font-heading text-lg font-semibold leading-none text-ink">
+                {copy.bindingStamp}
+              </span>
+            </span>
+          )}
         </li>
       </ol>
       <style>{PRINT_CSS}</style>
@@ -168,6 +210,7 @@ export default function InterviewNewPage() {
     setError(null);
     setSubmitting(true);
     if (mode === "practice") setPhase("printing");
+    let succeeded = false;
     try {
       const res = await fetch("/api/interview/create", {
         method: "POST",
@@ -186,6 +229,11 @@ export default function InterviewNewPage() {
         | { interviewId?: string; error?: string }
         | null;
       if (res.ok && payload?.interviewId) {
+        // 成卷先于进场：盖章落定（~1s）再切路由，翻转卡顿为收束感；
+        // RSC 载入间隙由面试路由的 loading 兜底页接住。成功后不回表单（旧版闪回的根源）。
+        succeeded = true;
+        setPhase("binding");
+        await new Promise((resolve) => setTimeout(resolve, 950));
         router.push(`/interview/${payload.interviewId}`);
         return;
       }
@@ -199,13 +247,16 @@ export default function InterviewNewPage() {
     } catch {
       setError(COPY.interviewNew.createFailed);
     } finally {
-      setPhase("form");
-      setSubmitting(false);
+      // 只在未成功时回卷表单；成功路径维持出卷面板直到路由切走
+      if (!succeeded) {
+        setPhase("form");
+        setSubmitting(false);
+      }
     }
   }
 
   const copy = COPY.interviewNew;
-  const busy = phase === "printing";
+  const busy = phase !== "form";
 
   // D6：radiogroup 方向键——↑/↓（含 ←/→）在档案卡间循环移动选中项并跟随焦点
   function onRadiogroupKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -245,7 +296,7 @@ export default function InterviewNewPage() {
 
         {busy ? (
           <div className="mt-10">
-            <PrintingPanel count={count} />
+            <PrintingPanel count={count} done={phase === "binding"} />
           </div>
         ) : (
           <>
