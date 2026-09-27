@@ -1,59 +1,77 @@
-import type { Question } from "@/lib/ai/schemas";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 /**
- * 「项目题问穿」技能（参考 ASu-skills /interview 的 Grill 模式裁剪）：
- * 项目题不问泛泛题，每题锁定简历中的一条可验证 Claim（主张），追问只追最关键的缺失证据，
- * 并有明确的降阶与停止条件——把简历问穿，但不无限追问（每题追问次数仍由状态机硬顶）。
- * 适用范围：真实面试模式下的项目题（isProjectGrillApplicable 路由）。
+ * 「项目题问穿」技能加载器（ZCode skill 规范工件：skills/project-grill/）。
+ * SKILL.md 是唯一事实来源——frontmatter 为元数据（name/description），
+ * references/ 下的文档即注入产品提示词的载荷；本模块只做读取、解析与代入。
+ * 路径用字面量 + next.config 的 outputFileTracingIncludes 显式打包，
+ * 防止 Vercel 文件追踪漏掉运行时 fs 读取的 markdown（读不到即抛错，宁响铃不带静默降级）。
  */
+
+const SKILL_ROOT = "skills/project-grill";
 
 export const PROJECT_GRILL = { id: "project-grill", name: "项目题问穿" } as const;
 
-/** 仅真实面试的项目题启用（practice 题库一次性出卷、非项目题维持通用链路） */
+/** 仅真实面试的项目题启用（practice 一次性出卷与非项目题维持通用链路） */
 export function isProjectGrillApplicable(mode: string, questionType: string): boolean {
   return mode === "real" && questionType === "project";
 }
 
-/** 五类 Claim 与各自的验证重点（技能核心分类法） */
-export const CLAIM_TAXONOMY: ReadonlyArray<{ kind: string; probe: string }> = [
-  { kind: "Ownership（个人边界）", probe: "追问个人范围、亲自实现的部分、关键决策；项目整体成果不自动算成个人成果" },
-  { kind: "Metric（指标口径）", probe: "追问 baseline、统计周期、数据来源与个人归因，不接受只报百分比" },
-  { kind: "Technical（技术作用）", probe: "追到技术在项目里的输入输出、具体作用与选型原因，不满足于百科定义" },
-  { kind: "Architecture（架构边界）", probe: "追问组件与数据流、替代方案、故障处理和扩展限制" },
-  { kind: "Result（真实结果）", probe: "追问是否真实交付、谁在使用、如何衡量、个人动作与团队结果的边界" },
-];
-
-/**
- * 出题侧契约：注入真实面试的单题生成提示词。
- * 题型由模型自然选择——本契约只在它选了项目题时生效：
- * 锁定一条 Claim、skillTag 用 Claim 主题、followupAnchor 给下一层追问方向。
- */
-export function projectGrillQuestionContract(): string {
-  const claims = CLAIM_TAXONOMY.map((c) => `${c.kind}：${c.probe}`).join("；");
-  return (
-    `项目题问穿契约（本题 type 选 project 时必须遵守）：不出泛泛的项目题，锁定简历中的一条具体 Claim 出题，` +
-    `判断候选人是否真的做过。skillTag 用该 Claim 的主题（与已问列表去重）；` +
-    `followupAnchor 写下一层最值得追问的具体方向（替代方案、统计口径、个人边界或故障场景）。` +
-    `五类 Claim 与验证重点：${claims}。`
-  );
+function readSkillFile(rel: string): string {
+  return readFileSync(path.join(process.cwd(), SKILL_ROOT, rel), "utf8");
 }
 
-/**
- * 追问侧指令：真实面试项目题触发追问时，拼进面试官的 followupText。
- * 只追一个最关键缺失证据 + 风险信号清单 + 卡住降阶（停止条件由状态机硬顶兜底）。
- */
+/** 极简 frontmatter 解析：仅支持 name/description 单行字段，不引 YAML 依赖 */
+function parseFrontmatter(raw: string): { name: string; description: string; body: string } {
+  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(raw);
+  if (!match) throw new Error("project-grill skill: SKILL.md 缺少 frontmatter");
+  const field = (key: string) => {
+    const m = new RegExp(`^${key}: (.+)$`, "m").exec(match[1]);
+    if (!m) throw new Error(`project-grill skill: frontmatter 缺少 ${key}`);
+    return m[1].trim();
+  };
+  return { name: field("name"), description: field("description"), body: match[2] };
+}
+
+let skillCache: { name: string; description: string; body: string } | null = null;
+
+/** SKILL.md 元数据（模块级缓存；dev 热更会重载模块，缓存生命周期安全） */
+export function getProjectGrillSkill() {
+  skillCache ??= parseFrontmatter(readSkillFile("SKILL.md"));
+  return skillCache;
+}
+
+/** 出题契约：references/question-contract.md 全文，注入 real 单题生成提示词 */
+export function projectGrillQuestionContract(): string {
+  return readSkillFile("references/question-contract.md").trim();
+}
+
+/** 追问指令：references/followup-directives.md「## 模板」段中的围栏模板，代入锚点与评估不足 */
 export function projectGrillFollowupDirectives(input: {
   anchor: string;
   improvements: string;
 }): string {
-  return (
-    `本项目题正在问穿一条 Claim（考察点：${input.anchor}），评估发现回答的不足：${input.improvements}。` +
-    `追问规则：只追一个最关键的缺失证据，一次只问一个问题；` +
-    `优先追这些风险信号——模糊词（负责/优化/提升）没有对象动作和证据；报了数字说不清口径（baseline/周期/来源）；` +
-    `强表述（主导/架构/Owner）划不清个人边界；只会 happy path 说不清失败与回滚；背术语定义说不清在项目中的作用；` +
-    `与简历或前面的回答矛盾。候选人明显卡住时降阶为最小事实问题；不要替候选人补造项目事实。`
-  );
+  const section = extractSection(readSkillFile("references/followup-directives.md"), "模板");
+  const fenced = /```[a-z]*\n([\s\S]*?)```/.exec(section);
+  if (!fenced) throw new Error("project-grill skill: 模板段缺少代码围栏");
+  return fenced[1]
+    .trim()
+    .replaceAll("{{anchor}}", input.anchor)
+    .replaceAll("{{improvements}}", input.improvements);
 }
 
-/** 供路由快速取通用追问文案的类型对齐（防止误用 Question 多余字段） */
-export type ProjectGrillQuestion = Pick<Question, "skillTag" | "followupAnchor">;
+/** 取「## <heading>」到下一个二级标题（或文末）之间的内容 */
+function extractSection(markdown: string, heading: string): string {
+  const lines = markdown.split("\n");
+  const start = lines.findIndex((l) => l.trim() === `## ${heading}`);
+  if (start === -1) throw new Error(`project-grill skill: 缺少「## ${heading}」段`);
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start + 1, end).join("\n").trim();
+}

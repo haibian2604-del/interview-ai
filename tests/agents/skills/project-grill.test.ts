@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CLAIM_TAXONOMY,
   PROJECT_GRILL,
+  getProjectGrillSkill,
   isProjectGrillApplicable,
   projectGrillFollowupDirectives,
   projectGrillQuestionContract,
@@ -21,14 +21,17 @@ describe("isProjectGrillApplicable（仅真实面试的项目题启用）", () =
 });
 
 describe("projectGrillQuestionContract（出题侧契约）", () => {
-  it("五类 Claim 齐备且各有验证重点", () => {
-    expect(CLAIM_TAXONOMY).toHaveLength(5);
-    const kinds = CLAIM_TAXONOMY.map((c) => c.kind).join();
-    for (const key of ["Ownership", "Metric", "Technical", "Architecture", "Result"]) {
-      expect(kinds).toContain(key);
-    }
-    for (const c of CLAIM_TAXONOMY) {
-      expect(c.probe.length).toBeGreaterThan(5);
+  it("契约含五类 Claim 分类法，且每类带验证重点", () => {
+    const contract = projectGrillQuestionContract();
+    for (const [kind, marker] of [
+      ["Ownership", "个人范围"],
+      ["Metric", "baseline"],
+      ["Technical", "输入输出"],
+      ["Architecture", "数据流"],
+      ["Result", "真实交付"],
+    ] as const) {
+      expect(contract).toContain(kind);
+      expect(contract).toContain(marker);
     }
   });
 
@@ -76,5 +79,27 @@ describe("projectGrillFollowupDirectives（追问侧指令）", () => {
     expect(directives).toContain("happy path");
     expect(directives).toContain("降阶为最小事实问题");
     expect(directives).toContain("不要替候选人补造项目事实");
+  });
+});
+
+describe("skill 工件（规范合规：skills/project-grill/ 按 元数据+工作流+references 三层组织）", () => {
+  it("SKILL.md frontmatter 解析：name 为 kebab-case 且与目录一致，description 声明触发条件", () => {
+    const skill = getProjectGrillSkill();
+    expect(skill.name).toBe(PROJECT_GRILL.id);
+    expect(skill.description).toContain("真实面试");
+    expect(skill.description).toContain("type=project");
+    expect(skill.body).toContain("适用条件");
+  });
+
+  it("追问模板占位符全部被代入，不残留 {{}} 与代码围栏", () => {
+    const directives = projectGrillFollowupDirectives({
+      anchor: "实时风控引擎",
+      improvements: "只会讲 happy path",
+    });
+    expect(directives).toContain("实时风控引擎");
+    expect(directives).toContain("只会讲 happy path");
+    expect(directives).not.toContain("{{anchor}}");
+    expect(directives).not.toContain("{{improvements}}");
+    expect(directives).not.toContain("```");
   });
 });
