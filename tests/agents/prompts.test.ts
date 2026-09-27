@@ -117,6 +117,20 @@ describe("buildInterviewerMessages", () => {
   });
 });
 
+describe("buildInterviewerMessages comment 模式", () => {
+  it("指令为「只点评上一回答、不提出新问题」", () => {
+    const messages = buildInterviewerMessages("comment", {
+      question: { content: "题", type: "skill", skillTag: "S", followupAnchor: "F" },
+      history: [],
+      followupText: null,
+    });
+    const last = messages[messages.length - 1];
+    expect(last.role).toBe("user");
+    expect(last.content).toContain("点评");
+    expect(last.content).toContain("不要提出新问题");
+  });
+});
+
 describe("buildResumeAnalystMessages", () => {
   it("包含简历原文", () => {
     expect(JSON.stringify(buildResumeAnalystMessages("十年架构经验"))).toContain("十年架构经验");
