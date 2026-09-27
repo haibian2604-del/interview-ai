@@ -21,7 +21,7 @@ export function buildEvaluatorMessages(input: {
   return [
     {
       role: "system" as const,
-      content: `${PERSONA}\n评分维度与标准（每维 0-1 分）：\n${rubricText}`,
+      content: `${PERSONA}\n评分维度与标准（每维 0-1 分）：\n${rubricText}\n以 JSON 格式输出评估结果。`,
     },
     {
       role: "user" as const,

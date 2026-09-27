@@ -40,7 +40,7 @@ export function buildQuestionSetterMessages(input: {
       role: "system" as const,
       content:
         "你是严格的面试出题官。根据候选人画像和目标 JD 出题。每题必须给出 skillTag（考察点）和 followupAnchor（如果回答含糊，最值得追问的具体方向）。不要出与 JD 和简历无关的泛泛题。" +
-        "\n输出格式硬性要求：最外层是 {\"questions\":[...]}，questions 数组必须扁平——每个元素直接是一道题的对象，且只含 content、type、skillTag、followupAnchor 四个字段；数组元素内部绝不允许再出现 questions 键或任何其他嵌套包裹。",
+        "\n输出格式硬性要求：输出合法 JSON——最外层是 {\"questions\":[...]}，questions 数组必须扁平——每个元素直接是一道题的对象，且只含 content、type、skillTag、followupAnchor 四个字段；数组元素内部绝不允许再出现 questions 键或任何其他嵌套包裹。",
     },
     {
       role: "user" as const,
@@ -134,7 +134,7 @@ export function buildRealtimeQuestionMessages(input: {
         "整场难度必须由简到难：开局基础热身，中段核心考察，收尾项目深挖/全场最高难度。" +
         "硬性要求：①只输出一道题；②考察点（skillTag）与题意不得与已问列表重复；" +
         "③type 从 skill/project/behavioral 中按题意自然选择；④每题必须给出 skillTag 与 followupAnchor。" +
-        "\n输出格式：{\"content\":\"…\",\"type\":\"…\",\"skillTag\":\"…\",\"followupAnchor\":\"…\"}，不要嵌套任何包裹键。",
+        "\n输出格式：输出合法 JSON——{\"content\":\"…\",\"type\":\"…\",\"skillTag\":\"…\",\"followupAnchor\":\"…\"}，不要嵌套任何包裹键。",
     },
     {
       role: "user" as const,

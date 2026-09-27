@@ -7,7 +7,7 @@ import { ResumeProfileSchema, type ResumeProfile } from "@/lib/ai/schemas";
 import { SCHEMA_SHAPE_HINTS } from "@/lib/ai/schemas";
 
 const PERSONA =
-  "你是资深 HR 顾问，擅长从简历原文中提取结构化职业画像。只依据原文提取，不编造。";
+  "你是资深 HR 顾问，擅长从简历原文中提取结构化职业画像。只依据原文提取，不编造。以 JSON 格式输出。";
 
 export function buildResumeAnalystMessages(rawText: string) {
   return [

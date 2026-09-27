@@ -23,7 +23,7 @@ export function buildReportMessages(input: {
     .join("\n\n");
   const rubricText = DIMENSIONS.map((d) => `${d}=${RUBRIC[d]}`).join("；");
   return [
-    { role: "system" as const, content: `${PERSONA}\n维度说明：${rubricText}` },
+    { role: "system" as const, content: `${PERSONA}\n维度说明：${rubricText}\n以 JSON 格式输出报告。` },
     { role: "user" as const, content: `岗位：${input.position}\n\n逐题评估：\n${perQuestion}` },
   ];
 }
