@@ -1,28 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- 面镜 Mirror · 考官评分簿世界：纸白底 / 黑墨镜 / 蓝墨所见 / 红墨批改章 -->
-  <!-- 纸白卷面 -->
-  <rect width="512" height="512" fill="#fbfaf7"/>
-  <!-- 卷面 hairline 内框（方角） -->
-  <rect x="26" y="26" width="460" height="460" fill="none" stroke="#21201d" stroke-opacity="0.28" stroke-width="5"/>
-
-  <!-- 镜子：竖椭圆双线框（印刷黑墨） -->
-  <ellipse cx="248" cy="230" rx="118" ry="150" fill="#ffffff" stroke="#21201d" stroke-width="16"/>
-  <ellipse cx="248" cy="230" rx="92" ry="124" fill="none" stroke="#21201d" stroke-opacity="0.35" stroke-width="5"/>
-
-  <!-- 镜中所见：蓝墨手写问号（你要回答的问题） -->
-  <path d="M204 196
-           C204 152 292 150 292 196
-           C292 232 248 236 248 272
-           L248 288"
-        fill="none" stroke="#2b4acb" stroke-width="21" stroke-linecap="round"/>
-  <circle cx="248" cy="330" r="13" fill="#2b4acb"/>
-
-  <!-- 红批改章：双线方章、微倾（呼应面试页 ScoreStamp） -->
-  <g transform="rotate(-8 396 396)">
-    <rect x="336" y="336" width="120" height="120" fill="#fbfaf7"/>
-    <rect x="342" y="342" width="108" height="108" fill="none" stroke="#a63a2f" stroke-width="9"/>
-    <rect x="358" y="358" width="76" height="76" fill="none" stroke="#a63a2f" stroke-width="4"/>
-    <path d="M378 398 L394 414 L418 380"
-          fill="none" stroke="#a63a2f" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- 面镜 Mirror 项目图标 · 考官评分簿世界 -->
+  <!-- 概念：评分之章中挖出镜位——评估的容器里空出照自己的位置，镜中所见即你要回答的问题 -->
+  <rect width="100" height="100" fill="#fbfaf7"/>
+  <!-- 红批改章：微倾实心方章 -->
+  <g transform="rotate(-4 50 50)">
+    <rect x="17" y="17" width="66" height="66" rx="3" fill="#a63a2f"/>
+    <!-- 镜位：纸白竖椭圆 -->
+    <ellipse cx="50" cy="50" rx="16" ry="22" fill="#fbfaf7"/>
+    <!-- 蓝墨问号（作答语义） -->
+    <path d="M44.5 45.5 C44.5 38.5 55.5 38 55.5 45.5 C55.5 50.5 50 51.5 50 56.5"
+          fill="none" stroke="#2b4acb" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="50" cy="63" r="2.4" fill="#2b4acb"/>
   </g>
 </svg>
