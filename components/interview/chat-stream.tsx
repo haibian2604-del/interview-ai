@@ -483,24 +483,17 @@ export function ChatStream(props: ChatStreamProps) {
     setBusy(false);
   }
 
-  async function abandon() {
+  // 弃考异步化：先导航后落章——目录页即回，状态更新在后台完成（SPA 路由不中断在途 fetch）。
+  // 失败静默进日志：面试仍留在目录为「进行中」，重进场可再弃
+  function abandon() {
     if (busy || ended) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/interview/${interviewId}/abandon`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        setError(errorForStatus(res, copy.abandonFailed));
-        return;
-      }
-      router.push("/dashboard");
-    } catch {
-      setError(copy.abandonFailed);
-    } finally {
-      setBusy(false);
-    }
+    setAbandonConfirmOpen(false);
+    router.push("/dashboard");
+    fetch(`/api/interview/${interviewId}/abandon`, { method: "POST" })
+      .then((res) => {
+        if (!res.ok) console.error(`[chat-stream] abandon failed: ${res.status}`);
+      })
+      .catch((e) => console.error("[chat-stream] abandon failed:", e));
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -714,7 +707,7 @@ export function ChatStream(props: ChatStreamProps) {
         description={copy.abandonConfirm}
         confirmLabel={copy.abandonButton}
         destructive
-        onConfirm={() => void abandon()}
+        onConfirm={abandon}
       />
       </div>
   );

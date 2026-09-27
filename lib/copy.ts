@@ -176,7 +176,6 @@ export const COPY = {
     abandonButton: "放弃面试",
     abandonTitle: "放弃面试",
     abandonConfirm: "确认缺考离场？本场面试将盖上「缺考」章，无法继续作答。",
-    abandonFailed: "弃考没有完成，请重试一次。",
     answerLabel: "作答区",
     answerPlaceholder: "在此作答……（Enter 发送，Shift+Enter 换行）",
     sendButton: "提交作答",
