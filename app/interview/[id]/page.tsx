@@ -27,7 +27,7 @@ export default async function InterviewPage({
   const supabase = await createSupabaseServerClient();
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, position, status, current_question_index, question_count, mode")
+    .select("id, position, status, current_question_index, question_count, mode, target_questions")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -144,6 +144,7 @@ export default async function InterviewPage({
           initialStamps={initialStamps}
           initialFollowupIdxs={initialFollowupIdxs}
           mode={interview.mode === "real" ? "real" : "practice"}
+          targetQuestions={interview.target_questions}
         />
       </div>
     </main>

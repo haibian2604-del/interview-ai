@@ -4,7 +4,7 @@ import { splitInstructions } from "@/lib/ai/instructions";
 import { withSchemaRetry } from "@/lib/ai/schema-retry";
 import { salvageQuestionSet, salvageSingleQuestion } from "@/lib/ai/json-salvage";
 import { getLlmConfig } from "@/lib/settings/service";
-import { questionStage, type QuestionStage } from "@/lib/orchestrator/real-mode";
+import { questionStage, type Difficulty, type QuestionStage } from "@/lib/orchestrator/real-mode";
 import {
   QuestionSetSchema,
   QuestionSchema,
@@ -96,13 +96,28 @@ export async function generateQuestions(
   return result.questions.slice(0, input.count);
 }
 
-/** 渐进出题：真实面试模式下逐题现场生成（历史感知、去重考察点、难度阶梯） */
+/** 难度基线的整场指令（用户创建时选择，叠加在难度阶梯之上） */
+const DIFFICULTY_HINT: Record<Difficulty, string> = {
+  easy:
+    "整场难度基线：简单——以基础知识点为主：概念澄清、原理简述、基础应用与最佳实践；" +
+    "即使收尾阶段也以基础综合应用为主，项目场景考察题整场不超过一两道。",
+  medium:
+    "整场难度基线：中等——按难度阶梯由简到难，收尾阶段进行项目深挖与综合考察。",
+  hard:
+    "整场难度基线：困难——以项目场景考察题为主：从开场即围绕简历项目的真实场景出题" +
+    "（给定业务场景、线上故障、技术取舍让候选人分析），难度仍随阶梯递进至全场最高。",
+};
+
+/** 渐进出题：真实面试模式下逐题现场生成（历史感知、去重考察点、难度阶梯 + 难度基线） */
 export function buildRealtimeQuestionMessages(input: {
   profile: ResumeProfile;
   jdText: string;
   position: string;
   askedQuestions: { content: string; skillTag: string }[];
   stage: QuestionStage;
+  difficulty: Difficulty;
+  /** 目标题数（10/15/20）：难度阶梯阶段边界按它等比划分 */
+  target: number;
   lastExchange?: { question: string; answer: string };
 }) {
   const askedList = input.askedQuestions.length
@@ -127,6 +142,9 @@ export function buildRealtimeQuestionMessages(input: {
 目标 JD：
 ${input.jdText || "（未提供，按岗位常识出题）"}
 
+整场难度基线（候选人自选，必须严格遵守）：
+${DIFFICULTY_HINT[input.difficulty]}
+
 当前难度阶段（必须严格遵守）：
 ${STAGE_HINT[input.stage]}
 
@@ -147,10 +165,10 @@ export async function generateNextQuestion(
   return withSchemaRetry(
     QuestionSchema,
     async (corrective) => {
-      // 难度阶梯由编排器确定性决定（已问题数 → 阶段），调用方无需传
+      // 难度阶梯由编排器确定性决定（已问题数 + 目标题数 → 阶段），调用方无需传
       const built = buildRealtimeQuestionMessages({
         ...input,
-        stage: questionStage(input.askedQuestions.length),
+        stage: questionStage(input.askedQuestions.length, input.target),
       });
       const { instructions, messages } = splitInstructions(
         corrective ? [...built, { role: "user" as const, content: corrective }] : built,

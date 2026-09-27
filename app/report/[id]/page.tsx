@@ -5,7 +5,6 @@ import { GenerateReportButton } from "@/components/report/generate-report-button
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { BackButton } from "@/components/back-button";
 import { COPY } from "@/lib/copy";
-import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
 
@@ -45,7 +44,7 @@ export default async function ReportPage({
   const supabase = await createSupabaseServerClient();
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, position, status, mode, question_count")
+    .select("id, position, status, mode, question_count, target_questions")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -95,9 +94,9 @@ export default async function ReportPage({
           </span>
           {interview.mode === "real" &&
             interview.status === "completed" &&
-            interview.question_count < REAL_MODE.target && (
+            interview.question_count < interview.target_questions && (
               <span className="border border-ink/30 px-1.5 py-0.5 font-mono text-[10px] tracking-[0.2em] text-ink/60">
-                {copy.earlyEndTemplate.replace("{n}", String(interview.question_count))}
+                {copy.earlyEndTemplate.replace("{n}", String(interview.question_count)).replace("{t}", String(interview.target_questions))}
               </span>
             )}
         </span>

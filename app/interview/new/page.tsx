@@ -26,6 +26,14 @@ const COUNT_MIN = 3;
 const COUNT_MAX = 10;
 const COUNT_DEFAULT = 6;
 
+// 真实面试选项（服务端 parseTargetQuestions/parseDifficulty 容错兜底）
+const TARGET_OPTIONS = [10, 15, 20] as const;
+const DIFFICULTY_OPTIONS = [
+  { value: "easy" as const, label: COPY.interviewNew.diffEasy, desc: COPY.interviewNew.diffEasyDesc },
+  { value: "medium" as const, label: COPY.interviewNew.diffMedium, desc: COPY.interviewNew.diffMediumDesc },
+  { value: "hard" as const, label: COPY.interviewNew.diffHard, desc: COPY.interviewNew.diffHardDesc },
+];
+
 // 档案编号：与简历库一致，最早归档的是 No.001
 function archiveNo(index: number) {
   return `No.${String(index + 1).padStart(3, "0")}`;
@@ -121,6 +129,8 @@ export default function InterviewNewPage() {
   const [interviewType, setInterviewType] = useState<InterviewType>("mixed");
   const [count, setCount] = useState(COUNT_DEFAULT);
   const [mode, setMode] = useState<"practice" | "real">("practice");
+  const [targetQuestions, setTargetQuestions] = useState<number>(10);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [phase, setPhase] = useState<Phase>("form");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +178,7 @@ export default function InterviewNewPage() {
           interviewType,
           questionCount: count,
           mode,
+          ...(mode === "real" ? { targetQuestions, difficulty } : {}),
         }),
       });
       const payload = (await res.json().catch(() => null)) as
@@ -442,6 +453,82 @@ export default function InterviewNewPage() {
                         </div>
                         <span className="font-mono text-xs text-pencil">{copy.countHint}</span>
                       </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* 第三步（真实面试）· 目标题数 + 难度 */}
+              {mode === "real" && (
+                <section className="rounded-none border border-ink/15 bg-transparent">
+                  <StepHeader
+                    label={copy.stepThreeLabel}
+                    title={copy.stepThreeTitle}
+                    hint={copy.modeRealDesc}
+                  />
+                  <div className="space-y-5 px-6 py-6">
+                    <div className="space-y-2">
+                      <p className="text-xs tracking-wide text-pencil">{copy.realCountLabel}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {TARGET_OPTIONS.map((option) => {
+                          const selected = targetQuestions === option;
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              aria-pressed={selected}
+                              disabled={busy}
+                              onClick={() => setTargetQuestions(option)}
+                              className={`flex items-center gap-2 rounded-none border px-3 py-2 text-sm transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
+                                selected
+                                  ? "border-ink bg-ink/[0.04]"
+                                  : "border-ink/20 hover:border-ink/40"
+                              }`}
+                            >
+                              <span
+                                aria-hidden
+                                className={`flex size-3.5 shrink-0 items-center justify-center border ${
+                                  selected ? "border-ink bg-ink" : "border-ink/40"
+                                }`}
+                              />
+                              <span className="font-mono">{option} 题</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs tracking-wide text-pencil">{copy.realDifficultyLabel}</p>
+                      <div className="flex flex-wrap gap-3">
+                        {DIFFICULTY_OPTIONS.map((option) => {
+                          const selected = difficulty === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={selected}
+                              disabled={busy}
+                              onClick={() => setDifficulty(option.value)}
+                              className={`flex items-center gap-2 rounded-none border px-3 py-2 text-sm transition-colors focus-visible:border-ink-blue focus-visible:outline-none ${
+                                selected
+                                  ? "border-ink bg-ink/[0.04]"
+                                  : "border-ink/20 hover:border-ink/40"
+                              }`}
+                            >
+                              <span
+                                aria-hidden
+                                className={`flex size-3.5 shrink-0 items-center justify-center border ${
+                                  selected ? "border-ink bg-ink" : "border-ink/40"
+                                }`}
+                              />
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs leading-5 text-pencil">
+                        {DIFFICULTY_OPTIONS.find((o) => o.value === difficulty)?.desc}
+                      </p>
                     </div>
                   </div>
                 </section>

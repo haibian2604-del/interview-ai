@@ -18,7 +18,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { VoiceInputButton } from "@/components/voice/voice-input-button";
 import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
 import { COPY } from "@/lib/copy";
-import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 import type { ChatMessage, StampData } from "@/lib/interview/mappers";
 
 const DIMENSION_KEYS = ["relevance", "depth", "structure", "communication"] as const;
@@ -41,6 +40,8 @@ export type ChatStreamProps = {
   initialStamps: Record<number, StampData>;
   initialFollowupIdxs: number[];
   mode: "practice" | "real";
+  /** real 模式的目标题数（创建时选定 10/15/20）；practice 忽略 */
+  targetQuestions: number;
 };
 
 function parseScoresHeader(value: string | null): StampData | null {
@@ -177,8 +178,8 @@ export function ChatStream(props: ChatStreamProps) {
   const isAbandoned = status === "abandoned";
   const isCompleted = status === "completed";
   const ended = isAbandoned || isCompleted;
-  // 进度与答题卡用目标题量（real = REAL_MODE.target，practice = 已生成题数）
-  const targetCount = props.mode === "real" ? REAL_MODE.target : questionList.length;
+  // 进度与答题卡用目标题量（real = 创建时选定值，practice = 已生成题数）
+  const targetCount = props.mode === "real" ? props.targetQuestions : questionList.length;
   // 派生信号：answer 已把 currentIndex 推进到「尚未生成的题」（>= 已生成题数），
   // 这正是「需要现场生成下一题」的确定性判定（live 接续与刷新恢复共用）
   const shouldGenerate =

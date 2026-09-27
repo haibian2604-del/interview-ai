@@ -6,7 +6,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 import { DeleteInterviewButton } from "@/components/dashboard/delete-interview-button";
 import { COPY } from "@/lib/copy";
-import { REAL_MODE } from "@/lib/orchestrator/real-mode";
 
 type InterviewRow = {
   id: string;
@@ -14,6 +13,7 @@ type InterviewRow = {
   interview_type: string;
   status: string;
   mode: string;
+  target_questions: number;
   question_count: number;
   created_at: string;
   completed_at: string | null;
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
   const { data, error } = await supabase
     .from("interviews")
     .select(
-      "id, position, interview_type, status, mode, question_count, created_at, completed_at, reports(overall_score)",
+      "id, position, interview_type, status, mode, question_count, target_questions, created_at, completed_at, reports(overall_score)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
@@ -240,7 +240,7 @@ export default async function DashboardPage() {
                             </span>
                             {row.mode === "real" &&
                               row.status === "completed" &&
-                              row.question_count < REAL_MODE.target && (
+                              row.question_count < row.target_questions && (
                                 <span
                                   className="mirror-stamp-in inline-block border border-ink/30 px-2.5 py-1 font-mono text-xs tracking-[0.25em] text-ink/60"
                                   style={delay}

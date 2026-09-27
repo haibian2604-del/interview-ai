@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 import { streamInterviewer } from "@/lib/agents/interviewer";
 import { generateNextQuestion } from "@/lib/agents/question-setter";
+import { parseDifficulty } from "@/lib/orchestrator/real-mode";
 import { loadInterviewProfile } from "@/lib/interview/profile";
 import type { Question, ResumeProfile } from "@/lib/ai/schemas";
 import { rowToQuestion } from "@/lib/interview/mappers";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, status, current_question_index, question_count, mode, resume_id, position, jd_text")
+    .select("id, status, current_question_index, question_count, mode, resume_id, position, jd_text, target_questions, difficulty")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -96,6 +97,8 @@ export async function POST(request: Request) {
         jdText: interview.jd_text ?? "",
         position: interview.position,
         askedQuestions: [],
+        target: interview.target_questions,
+        difficulty: parseDifficulty(interview.difficulty),
       });
     } catch (e) {
       return serverErrorResponse("[interview/start] generate first question failed:", e, 502);

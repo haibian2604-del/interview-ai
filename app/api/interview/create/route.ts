@@ -4,7 +4,7 @@ import { analyzeResume } from "@/lib/agents/resume-analyst";
 import { generateQuestions } from "@/lib/agents/question-setter";
 import type { ResumeProfile } from "@/lib/ai/schemas";
 import { clampQuestionCount } from "@/lib/interview/count";
-import { parseMode } from "@/lib/orchestrator/real-mode";
+import { parseDifficulty, parseMode, parseTargetQuestions } from "@/lib/orchestrator/real-mode";
 import { COPY } from "@/lib/copy";
 import { serverErrorResponse } from "@/lib/api/server-error";
 
@@ -25,6 +25,8 @@ export async function POST(request: Request) {
     interviewType: "skill" | "project" | "behavioral" | "mixed";
     questionCount?: number;
     mode?: unknown;
+    targetQuestions?: unknown;
+    difficulty?: unknown;
   };
   // B3：非法 body 兜底 400（对齐 answer/start 先例）
   try {
@@ -35,6 +37,9 @@ export async function POST(request: Request) {
   // 服务端钳制：请求值不可信，题库对账以落库事实为准（见 lib/interview/count.ts）
   const count = clampQuestionCount(body.questionCount);
   const mode = parseMode(body.mode);
+  // 真实面试选项（题数 10/15/20 + 难度三档）：parse* 容错，practice 不消费
+  const targetQuestions = parseTargetQuestions(body.targetQuestions);
+  const difficulty = parseDifficulty(body.difficulty);
   const supabase = await createSupabaseServerClient();
 
   const { data: resume } = await supabase
@@ -56,6 +61,8 @@ export async function POST(request: Request) {
       question_count: mode === "real" ? 0 : count,
       status: mode === "real" ? "ready" : "generating",
       mode,
+      target_questions: targetQuestions,
+      difficulty,
     })
     .select("id")
     .single();

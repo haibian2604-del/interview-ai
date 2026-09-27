@@ -3,7 +3,9 @@ import {
   REAL_MODE,
   checkTermination,
   decideRealNextAction,
+  parseDifficulty,
   parseMode,
+  parseTargetQuestions,
   questionStage,
 } from "@/lib/orchestrator/real-mode";
 
@@ -13,6 +15,25 @@ describe("orchestrator/parseMode", () => {
     expect(parseMode("practice")).toBe("practice");
     expect(parseMode(undefined)).toBe("practice");
     expect(parseMode(42)).toBe("practice");
+  });
+});
+
+describe("orchestrator/parseTargetQuestions / parseDifficulty", () => {
+  it("题数仅认 10/15/20，其余回落 10", () => {
+    expect(parseTargetQuestions(10)).toBe(10);
+    expect(parseTargetQuestions(15)).toBe(15);
+    expect(parseTargetQuestions(20)).toBe(20);
+    expect(parseTargetQuestions(undefined)).toBe(10);
+    expect(parseTargetQuestions(12)).toBe(10);
+    expect(parseTargetQuestions("15")).toBe(10);
+  });
+
+  it("难度仅认 easy/hard，medium 为缺省", () => {
+    expect(parseDifficulty("easy")).toBe("easy");
+    expect(parseDifficulty("hard")).toBe("hard");
+    expect(parseDifficulty("medium")).toBe("medium");
+    expect(parseDifficulty(undefined)).toBe("medium");
+    expect(parseDifficulty("简单")).toBe("medium");
   });
 });
 
@@ -31,7 +52,9 @@ describe("orchestrator/questionStage（难度阶梯）", () => {
   it("收尾（7 题起）→ deep 项目深挖/最高难度", () => {
     expect(questionStage(7)).toBe("deep");
     expect(questionStage(9)).toBe("deep");
-    expect(questionStage(REAL_MODE.maxQuestions)).toBe("deep");
+    expect(questionStage(9, 10)).toBe("deep");
+    expect(questionStage(12, 15)).toBe("deep");
+    expect(questionStage(16, 20)).toBe("deep");
   });
 });
 
@@ -41,8 +64,8 @@ describe("orchestrator/checkTermination", () => {
     expect(checkTermination(scores)).toEqual({ terminate: true, reason: "target" });
   });
 
-  it("达到绝对上限 → target 终止（防御性兜底）", () => {
-    const scores = Array.from({ length: REAL_MODE.maxQuestions }, () => 0.9);
+  it("达到防御性上限（target + maxOverrun）→ target 终止", () => {
+    const scores = Array.from({ length: 10 + REAL_MODE.maxOverrun }, () => 0.9);
     expect(checkTermination(scores).reason).toBe("target");
   });
 

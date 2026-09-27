@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, status, current_question_index, question_count, mode")
+    .select("id, status, current_question_index, question_count, mode, target_questions")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -146,6 +146,7 @@ export async function POST(request: Request) {
       score: averageScore(evaluation.scores),
       followupCount,
       composites,
+      target: interview.target_questions,
     });
     next = real.action;
     endEarly = real.endEarly;

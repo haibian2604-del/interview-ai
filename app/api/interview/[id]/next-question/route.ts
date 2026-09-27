@@ -4,7 +4,7 @@ import { generateNextQuestion } from "@/lib/agents/question-setter";
 import { loadInterviewProfile } from "@/lib/interview/profile";
 import { loadCompositeScores } from "@/lib/interview/scores";
 import { rowToQuestion } from "@/lib/interview/mappers";
-import { checkTermination } from "@/lib/orchestrator/real-mode";
+import { checkTermination, parseDifficulty } from "@/lib/orchestrator/real-mode";
 import { teeWithPersist } from "@/lib/interview/stream-persist";
 import { COPY } from "@/lib/copy";
 import { serverErrorResponse } from "@/lib/api/server-error";
@@ -28,7 +28,7 @@ export async function POST(
   const supabase = await createSupabaseServerClient();
   const { data: interview, error: interviewError } = await supabase
     .from("interviews")
-    .select("id, status, current_question_index, mode, resume_id, position, jd_text")
+    .select("id, status, current_question_index, mode, resume_id, position, jd_text, target_questions, difficulty")
     .eq("id", interviewId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -47,7 +47,7 @@ export async function POST(
   } catch (e) {
     return serverErrorResponse("[interview/next-question] load composite scores failed:", e, 500);
   }
-  if (checkTermination(composites).terminate) {
+  if (checkTermination(composites, interview.target_questions).terminate) {
     return NextResponse.json({ error: COPY.interview.notInProgress }, { status: 409 });
   }
 
@@ -100,6 +100,8 @@ export async function POST(
       jdText: interview.jd_text ?? "",
       position: interview.position,
       askedQuestions: (askedRows ?? []).map((q) => ({ content: q.content, skillTag: q.skill_tag })),
+      target: interview.target_questions,
+      difficulty: parseDifficulty(interview.difficulty),
       lastExchange: lastCandidate
         ? { question: (askedRows ?? [])[nextIdx - 1]?.content ?? "", answer: lastCandidate.content }
         : undefined,

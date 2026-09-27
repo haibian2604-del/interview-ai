@@ -148,6 +148,8 @@ describe("buildRealtimeQuestionMessages", () => {
     position: "后端",
     askedQuestions: [] as { content: string; skillTag: string }[],
     stage: "opening" as const,
+    difficulty: "medium" as const,
+    target: 10,
   };
 
   it("系统指令含综合面试官视角、「恰好一道」硬约束与由简到难总则", () => {
@@ -155,6 +157,14 @@ describe("buildRealtimeQuestionMessages", () => {
     expect(messages[0].role).toBe("system");
     expect(messages[0].content).toContain("一道");
     expect(messages[0].content).toContain("由简到难");
+  });
+
+  it("难度基线指令进 user prompt（easy 基础知识点 / hard 项目场景为主）", () => {
+    const easy = buildRealtimeQuestionMessages({ ...base, difficulty: "easy" });
+    expect(easy[easy.length - 1].content).toContain("以基础知识点为主");
+
+    const hard = buildRealtimeQuestionMessages({ ...base, difficulty: "hard" });
+    expect(hard[hard.length - 1].content).toContain("以项目场景考察题为主");
   });
 
   it("难度阶段指令进 user prompt（opening 禁项目深挖 / deep 项目题收尾）", () => {
