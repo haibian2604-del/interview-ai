@@ -226,7 +226,7 @@ export const COPY = {
     headerLabel: "装备单 · 考生自备",
     headerTitle: "装备单 · LLM 设置",
     headerHint:
-      "四栏装备逐项登记：端点、密钥、对话模型、评估模型。保存即加密入卷；未登记的字段，一律回落系统默认装备。",
+      "七栏装备逐项登记：端点、密钥、对话模型、评估模型，另加可选的语音识别三栏（端点、密钥、模型）。保存即加密入卷；未登记的字段，一律回落系统默认装备。",
     sectionEndpoint: "01 · API 端点",
     sectionApiKey: "02 · API 密钥",
     sectionChatModel: "03 · 对话模型",
