@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "面镜 Mirror · 系统架构",
+    "output": "docs/architecture-mirror.html",
+    "quality_profile": "showcase",
+    "locale": "zh-CN"
+  },
+  "components": [
+    {
+      "id": "candidate",
+      "type": "external",
+      "label": "候选人",
+      "sublabel": "magic link 登录",
+      "pos": [
+        24,
+        150
+      ],
+      "size": [
+        100,
+        76
+      ]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "面镜 Mirror 前端",
+      "sublabel": "Next.js App Router · 卷面对话流",
+      "pos": [
+        184,
+        150
+      ],
+      "size": [
+        140,
+        76
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Vercel Serverless API",
+      "sublabel": "/api/* 登记 · 作答 · 报告 · 设置",
+      "pos": [
+        414,
+        150
+      ],
+      "size": [
+        160,
+        76
+      ]
+    },
+    {
+      "id": "orchestrator",
+      "type": "backend",
+      "label": "纯代码编排器",
+      "sublabel": "状态机 · 追问/难度阶梯/终止",
+      "pos": [
+        664,
+        150
+      ],
+      "size": [
+        160,
+        76
+      ],
+      "tag": "唯一流程决策者"
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "五角色 Agent 层",
+      "sublabel": "五角色 Agent · 调用 BYOK LLM",
+      "pos": [
+        874,
+        260
+      ],
+      "size": [
+        140,
+        76
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Supabase Postgres",
+      "sublabel": "7 表全 RLS · 逐轮落盘",
+      "pos": [
+        414,
+        260
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "cloud",
+      "label": "Supabase Storage",
+      "sublabel": "简历原件 bucket",
+      "pos": [
+        184,
+        260
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "asr",
+      "type": "external",
+      "label": "语音识别 ASR",
+      "sublabel": "用户自配 · /audio/transcriptions",
+      "pos": [
+        644,
+        260
+      ],
+      "size": [
+        160,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vercel",
+      "wraps": [
+        "frontend",
+        "api",
+        "orchestrator",
+        "agents"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "candidate-to-frontend",
+      "from": "candidate",
+      "to": "frontend",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-to-api",
+      "from": "frontend",
+      "to": "api",
+      "label": "流式调用"
+    },
+    {
+      "id": "api-to-orchestrator",
+      "from": "api",
+      "to": "orchestrator",
+      "label": "流程决策"
+    },
+    {
+      "id": "orchestrator-to-agents",
+      "from": "orchestrator",
+      "to": "agents",
+      "label": "按角色调度",
+      "labelAt": [
+        760,
+        236
+      ]
+    },
+    {
+      "id": "api-to-postgres",
+      "from": "api",
+      "to": "postgres",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        465,
+        236
+      ]
+    },
+    {
+      "id": "api-to-storage",
+      "from": "api",
+      "to": "storage",
+      "label": "简历原件存取",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        225,
+        236
+      ]
+    },
+    {
+      "id": "api-to-asr",
+      "from": "api",
+      "to": "asr",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        629,
+        236
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求链",
+      "items": [
+        "候选人 → Next.js 前端 → Serverless API → 编排器 → Agent → BYOK 网关",
+        "考官话术与题目全程流式输出，逐轮即时落盘可恢复"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "数据与存储",
+      "items": [
+        "Supabase Postgres 七表承载卷宗，全部启用 RLS",
+        "简历原件存 Storage bucket；简历支持 PDF 与 Markdown"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全与边界",
+      "items": [
+        "邮箱 magic link 登录；LLM 与 ASR 均为用户自带（BYOK），key 加密入库",
+        "编排器是唯一流程决策者：追问阈值、难度阶梯与终止规则皆为代码常量",
+        "语音录音经 API 内存过路转发到用户自配 ASR，不落盘"
+      ]
+    }
+  ]
+}
