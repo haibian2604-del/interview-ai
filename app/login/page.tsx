@@ -15,7 +15,6 @@ function LoginCover() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [emailError, setEmailError] = useState(false);
-  const [oauthError, setOauthError] = useState(false);
   const hasAuthError = searchParams.get("error") === "auth";
   // B9：登录后回跳来源页——next 校验后拼进两条登录流的回调地址。
   // 拼接必须在事件处理器内做（window.location 浏览器才有）：渲染期取 location 会让 SSR 整页崩
@@ -38,20 +37,6 @@ function LoginCover() {
       return;
     }
     setSent(true);
-  }
-
-  async function signInWithGitHub() {
-    setOauthError(false);
-    try {
-      // B10：OAuth 发起失败（弹窗被拦 / 网络断 / provider 报错）不再静默，落错误批注
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: { redirectTo: buildCallbackUrl() },
-      });
-      if (error) setOauthError(true);
-    } catch {
-      setOauthError(true);
-    }
   }
 
   // 印刷语义：红墨仅用于错误/批改时刻
@@ -84,7 +69,7 @@ function LoginCover() {
           </dl>
         </section>
 
-        {/* 封面右页：登录表单（魔法链接为主、GitHub 为辅） */}
+        {/* 封面右页：登录表单（仅邮箱 magic link） */}
         <section className="flex flex-col justify-center px-10 py-16">
           <div className="w-full max-w-sm">
             <h2 className="font-heading text-xl font-semibold">
@@ -92,11 +77,11 @@ function LoginCover() {
             </h2>
             <p className="mt-1 text-sm text-pencil">{COPY.login.formHint}</p>
             <div className="mt-6 space-y-3">
-              {(hasAuthError || oauthError) && (
+              {hasAuthError && (
                 <ErrorAnnotation text={COPY.login.authError} />
               )}
               {/* D4：有错误批注时不同屏展示「已发送」提示，避免两态同屏打架 */}
-              {sent && !hasAuthError && !oauthError ? (
+              {sent && !hasAuthError ? (
                 <p className="border border-ink/20 bg-ink/[0.03] px-4 py-6 text-sm leading-6">
                   {COPY.login.sent}
                 </p>
@@ -128,15 +113,6 @@ function LoginCover() {
                     }}
                   >
                     {COPY.login.magicLink}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      void signInWithGitHub();
-                    }}
-                  >
-                    {COPY.login.github}
                   </Button>
                 </>
               )}

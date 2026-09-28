@@ -67,7 +67,7 @@
 
 - **Next.js 16**（App Router，TypeScript strict）+ React 19
 - **Tailwind CSS v4 + shadcn/ui（Base UI）+ recharts**（评分雷达图）+ react-markdown（考官输出渲染）
-- **Supabase**：Auth（邮箱 magic link + GitHub OAuth）、Postgres（全部表启用 RLS）、Storage（简历 PDF）
+- **Supabase**：Auth（邮箱 magic link）、Postgres（全部表启用 RLS）、Storage（简历原件）
 - **Vercel AI SDK**（`ai` + `@ai-sdk/openai-compatible`）：任何 OpenAI 兼容端点均可接入，模型按 Agent 粒度可配
 - **pnpm**；部署目标 Vercel（serverless，无自建长连接）
 - **vitest** 169 用例（编排器 / Agent 提示词契约 / 抢救链 / 设置 / 语音 / 导航）
@@ -118,7 +118,6 @@ cp .env.example .env.local
 ### 4. 开启 Auth 提供方
 
 - **Email（必开）**：Dashboard → Authentication → Sign In / Providers → Email 开启（magic link 模式使用）。
-- **GitHub OAuth（可选）**：先在 GitHub 建 OAuth App，其 Authorization callback URL 填 `https://<your-project-ref>.supabase.co/auth/v1/callback`；再在 Supabase → Authentication → Providers → GitHub 填入 GitHub 的 Client ID / Client Secret。
 - 在 Supabase → Authentication → URL Configuration 的 Redirect URLs 中加入 `http://localhost:3000/auth/callback`（生产环境加 `https://<your-domain>/auth/callback`），登录回跳由此路由换取会话。
 
 ### 5. 启动

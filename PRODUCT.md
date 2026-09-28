@@ -32,7 +32,7 @@ AI 模拟面试 Agent（文字对话）：上传简历 + 粘贴目标 JD，AI �
 
 ## Capabilities and Constraints
 
-- 已确认功能：邮箱 magic link + GitHub OAuth 登录；简历 PDF 上传解析（+文本粘贴兜底）；简历结构化画像（JSON）；定制出题；文字面试对话（打字机流式）；逐题评分；综合报告（雷达图）；历史列表
+- 已确认功能：邮箱 magic link 登录；简历 PDF 上传解析（+文本粘贴兜底）；简历结构化画像（JSON）；定制出题；文字面试对话（打字机流式）；逐题评分；综合报告（雷达图）；历史列表
 - 明确未定（二期候选）：语音面试、多次练习成绩曲线、支付、国际化（当前仅中文，文案集中 lib/copy.ts）
 - 技术约束：TypeScript strict；全部表 RLS；Vercel serverless（不能跑长连接 WebSocket）；评估阈值是代码常量而非模型输出
 
