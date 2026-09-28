@@ -106,6 +106,14 @@ export default async function DashboardPage() {
   const interviews = (data ?? []) as InterviewRow[];
   const copy = COPY.dashboard;
 
+  // 登录者头像：GitHub OAuth 带 avatar_url；magic link 邮箱用户回落「姓名/邮箱首字」墨字章
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const avatarUrl = typeof meta.avatar_url === "string" ? meta.avatar_url : null;
+  const displayName =
+    [meta.full_name, meta.name, meta.user_name, user.email]
+      .find((v) => typeof v === "string" && v.trim() !== "") ?? "";
+  const initial = (String(displayName).trim()[0] ?? "？").toUpperCase();
+
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
       {/* 卷首：产品名 + 简历库入口 + 新建面试 + 退出登录 */}
@@ -131,6 +139,23 @@ export default async function DashboardPage() {
             <Link href="/interview/new" className={buttonVariants({ className: "rounded-none" })}>
               {copy.navNewInterview}
             </Link>
+            {/* 登录者头像：方角墨框与评分簿世界同构，title 悬停看身份 */}
+            <span
+              title={String(displayName)}
+              className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-none border border-ink/30 bg-ink/[0.04] font-mono text-sm text-ink"
+            >
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="size-full object-cover"
+                />
+              ) : (
+                initial
+              )}
+            </span>
             <SignOutButton />
           </nav>
         </div>
