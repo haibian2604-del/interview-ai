@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
-import { getMaskedLlmSettings } from "@/lib/settings/service";
+import { getMaskedLlmSettings, listLlmUrlPresets } from "@/lib/settings/service";
 import { encryptSecret } from "@/lib/settings/crypto";
 import { validateLlmSettingsInput } from "@/lib/settings/validation";
 import { COPY } from "@/lib/copy";
@@ -8,6 +8,16 @@ import { COPY } from "@/lib/copy";
 /** key 列写入值：空串 = 清除（回落链顶上），非空 = 加密覆盖 */
 function encryptOrClear(value: string): string {
   return value === "" ? "" : encryptSecret(value);
+}
+
+/** GET/PUT 共用的响应载荷：掩码形态 + 端点预设（预设读取失败为空数组，不阻塞设置页） */
+async function settingsPayload(userId: string) {
+  const supabase = await createSupabaseServerClient();
+  const [masked, llmUrlPresets] = await Promise.all([
+    getMaskedLlmSettings(userId),
+    listLlmUrlPresets(supabase),
+  ]);
+  return { ...masked, llmUrlPresets };
 }
 
 export async function GET() {
@@ -18,9 +28,7 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: COPY.api.unauthorized }, { status: 401 });
   }
-  // 掩码形态：绝无密文、绝无明文 key
-  const masked = await getMaskedLlmSettings(user.id);
-  return NextResponse.json(masked);
+  return NextResponse.json(await settingsPayload(user.id));
 }
 
 export async function PUT(request: Request) {
@@ -86,6 +94,5 @@ export async function PUT(request: Request) {
   }
 
   // 成功返回最新掩码形态（客户端就地刷新，无需二次 GET）
-  const masked = await getMaskedLlmSettings(user.id);
-  return NextResponse.json(masked);
+  return NextResponse.json(await settingsPayload(user.id));
 }

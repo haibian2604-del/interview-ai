@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 import type { UserLlmSettings } from "@/lib/settings/service";
-import { resolveAsrConfig } from "@/lib/settings/service";
+import { mapPresetRows, resolveAsrConfig } from "@/lib/settings/service";
 
 describe("settings/resolveConfig（用户配置优先、env 逐字段兜底）", () => {
   const ORIG = { ...process.env };
@@ -207,5 +207,23 @@ describe("settings/resolveAsrConfig", () => {
       env: { asrBaseUrl: "https://a.io", asrApiKey: "k", asrModel: "m" },
     });
     expect(cfg).toEqual({ baseURL: "https://a.io", apiKey: "k", model: "m" });
+  });
+});
+
+describe("settings/mapPresetRows（端点预设防御性映射）", () => {
+  it("丢弃缺字段 / 空串 / 非字符串的脏行，合法行透传", () => {
+    expect(
+      mapPresetRows([
+        { label: "DeepSeek", url: "https://api.deepseek.com" },
+        { label: "", url: "https://x.io" },
+        { label: "GLM", url: "" },
+        { label: 42, url: "https://y.io" },
+        { label: null, url: null },
+      ]),
+    ).toEqual([{ label: "DeepSeek", url: "https://api.deepseek.com" }]);
+  });
+
+  it("null / undefined 行集视为无预设", () => {
+    expect(mapPresetRows(null)).toEqual([]);
   });
 });

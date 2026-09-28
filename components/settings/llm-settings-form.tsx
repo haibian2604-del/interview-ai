@@ -6,18 +6,12 @@ import { Input } from "@/components/ui/input";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { COPY } from "@/lib/copy";
+import type { LlmUrlPreset } from "@/lib/settings/service";
 
 type PutResult = { ok: true; payload: MaskedLlmSettings } | { ok: false; error: string };
 
-/** LLM 端点预设：点选即填入 01 栏，用户只需再填模型名与密钥（仍可手改，非锁定） */
-const LLM_URL_PRESETS: ReadonlyArray<{ label: string; url: string }> = [
-  { label: "DeepSeek", url: "https://api.deepseek.com" },
-  { label: "GLM", url: "https://open.bigmodel.cn/api/paas/v4/" },
-  { label: "GLM Coding Plan", url: "https://open.bigmodel.cn/api/v1" },
-  { label: "Kimi", url: "https://api.moonshot.cn" },
-];
-
-/** 形状与 lib/settings/service.ts getMaskedLlmSettings 返回值一致（仅掩码，无任何 key 形态） */
+/** 形状与 lib/settings/service.ts getMaskedLlmSettings 返回值一致（仅掩码，无任何 key 形态）；
+ * llmUrlPresets 为系统级端点预设（0007 迁移的 llm_endpoint_presets 表，读取失败为空数组） */
 export type MaskedLlmSettings = {
   hasUserConfig: boolean;
   llmBaseUrl: string;
@@ -29,6 +23,7 @@ export type MaskedLlmSettings = {
   asrModel: string;
   asrHasKey: boolean;
   asrKeyMask: string;
+  llmUrlPresets?: LlmUrlPreset[];
 };
 
 /** 装备单的一栏：mono 眉标 + 字段标签 + 输入 + 灰字回落说明 */
@@ -302,7 +297,7 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         hint={copy.fallbackHint}
       >
         <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label={copy.endpointPresets}>
-          {LLM_URL_PRESETS.map((preset) => {
+          {(initial.llmUrlPresets ?? []).map((preset) => {
             const active = baseUrl === preset.url;
             return (
               <button
