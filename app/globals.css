@@ -116,6 +116,13 @@
 }
 .mirror-stamp-in { animation: mirror-stamp-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+/* 进行中状态/等待行的呼吸动画（原 question-progress 与 chat-stream 双处内联定义收敛至此，防节拍漂移） */
+@keyframes mirror-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.mirror-breathe { animation: mirror-breathe 1.6s ease-in-out infinite; }
+
 /* 出卷等待期的「活墨」：一条循环自写的墨线（写满→淡出→重写）。
    新建面试页 PrintingPanel 与面试路由 loading 兜底页共用，全站权威定义。 */
 @keyframes mirror-print-cycle {

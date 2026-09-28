@@ -2,11 +2,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "cn";
 import { COPY } from "@/lib/copy";
 
-// 进行中题号方格的呼吸动画（蓝作答 = 「进行中」状态）
-const BREATHE_CSS = `
-@keyframes mirror-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.mirror-breathe { animation: mirror-breathe 1.6s ease-in-out infinite; }
-`;
+// 进行中题号方格的呼吸动画（蓝作答 = 「进行中」状态）：mirror-breathe 已收敛至 globals.css
 
 type QuestionProgressProps = {
   currentIndex: number;
@@ -36,14 +32,13 @@ export function QuestionProgress({
 
   return (
     <section aria-label={copy.progressTitle} className="rounded-none border border-ink/15">
-      <style>{BREATHE_CSS}</style>
       <div className="border-b border-ink/15 px-5 py-4">
         <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
           {copy.progressTitle}
         </p>
         <p className="mt-3 font-heading text-2xl font-semibold tabular-nums">
           {copy.questionLabelPrefix} {currentLabel}{" "}
-          <span className="text-pencil">/ {questionCount} 题</span>
+          <span className="text-pencil">/ {questionCount} {copy.questionLabelSuffix}</span>
         </p>
         <div className="mt-4">
           <Progress value={progressValue} aria-label={copy.progressTitle} className="gap-2" />
@@ -74,7 +69,7 @@ export function QuestionProgress({
                   {followupSet.has(i) && (
                     <span
                       aria-label={copy.followupBadgeAria}
-                      className="absolute -right-2 -top-2 font-mono text-[9px] leading-none text-ink-blue"
+                      className="absolute -right-2 -top-2 font-mono text-[9px] leading-none text-ink/70"
                     >
                       {copy.followupBadgeMark}
                     </span>

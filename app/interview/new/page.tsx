@@ -54,6 +54,11 @@ const PRINT_CSS = `
 .mirror-print-row { opacity: 0; animation: mirror-print-row 0.4s ease-out forwards; }
 .mirror-print-line { transform: scaleX(0); animation: mirror-print-line 1.1s ease-in-out forwards; }
 .mirror-print-pulse { animation: mirror-print-pulse 1.4s ease-in-out infinite; }
+/* 前庭安全：本地动画降静态终态（row 基态 opacity:0，裸禁用会整版隐形；line 停满线） */
+@media (prefers-reduced-motion: reduce) {
+  .mirror-print-row { animation: none; opacity: 1; transform: none; }
+  .mirror-print-line { animation: none; transform: scaleX(1); }
+}
 `;
 
 // 考官工作节拍：出卷调用的真实工序叙事，随时间递减节奏推进（最坏等待也不坠入静止）
@@ -620,7 +625,7 @@ export default function InterviewNewPage() {
                                   selected ? "border-ink bg-ink" : "border-ink/40"
                                 }`}
                               />
-                              <span className="font-mono">{option} 题</span>
+                              <span className="font-mono">{option} {COPY.interview.questionLabelSuffix}</span>
                             </button>
                           );
                         })}

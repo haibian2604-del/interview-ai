@@ -114,8 +114,9 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 function ScoreStamp({ data, animate }: { data: StampData; animate: boolean }) {
   const copy = COPY.interview;
   return (
-    <li className={animate ? "mirror-stamp-in" : undefined}>
-      <div className="inline-block -rotate-2 border-2 border-ink-red px-1.5 py-1.5 text-ink-red">
+    // 倾角统一放外层：动画终帧 rotate(-2deg) 与静态 -rotate-2 同值，现场与刷新还原同形
+    <li className={animate ? "mirror-stamp-in -rotate-2" : "-rotate-2"}>
+      <div className="inline-block border-2 border-ink-red px-1.5 py-1.5 text-ink-red">
         <div className="border border-ink-red/50 px-3 py-2.5">
           <p className="font-mono text-[10px] tracking-[0.35em]">{copy.stampLabel}</p>
           <dl className="mt-2 grid grid-cols-4 gap-x-4 gap-y-1">
@@ -144,12 +145,7 @@ const subscribeNever = () => () => {};
 const getMounted = () => true;
 const getServerMounted = () => false;
 
-// 生成下一题时的呼吸动画（「考官翻阅你的档案……」）。question-progress 的 BREATHE_CSS
-// 只在其组件渲染树内生效，ChatStream 自持一份同款（globals.css 只有 reduced-motion 覆盖）。
-const BREATHE_CSS = `
-@keyframes mirror-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.mirror-breathe { animation: mirror-breathe 1.6s ease-in-out infinite; }
-`;
+// 生成下一题/思忖等待的呼吸动画（mirror-breathe）已收敛至 globals.css 权威定义
 
 export function ChatStream(props: ChatStreamProps) {
   const copy = COPY.interview;
@@ -202,11 +198,19 @@ export function ChatStream(props: ChatStreamProps) {
 
   const nextLocalId = () => `local-${interviewId}-${++localIdRef.current}`;
 
-  // 卷面随新内容滚动到底（打字机 + 新气泡）
+  // 卷面跟随滚动：仅当用户本就停在近底时才跟新内容（打字机/新气泡），
+  // 上滑回读历史不被逐帧拽回底部；提交作答时置回 true 强制跟一次
+  const nearBottomRef = useRef(true);
   useEffect(() => {
     const list = scrollRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    if (list && nearBottomRef.current) list.scrollTop = list.scrollHeight;
   }, [messages, error]);
+
+  function handleFlowScroll() {
+    const list = scrollRef.current;
+    if (!list) return;
+    nearBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+  }
 
   function appendMessage(m: ChatMessage) {
     setMessages((prev) => [...prev, m]);
@@ -419,7 +423,9 @@ export function ChatStream(props: ChatStreamProps) {
       questionIdx: answeredIdx,
       isFollowupQuestion: false,
     });
-    // 评估在服务端先行（约 5-10s）：流式气泡出现前以「考官思忖中」补上空窗，免得像卡死
+    // 评估在服务端先行（约 5-10s）：流式气泡出现前以「考官思忖中」补上空窗，免得像卡死；
+    // 提交即视为要跟最新卷面（哪怕此前在上滑回读）
+    nearBottomRef.current = true;
     setThinking(true);
 
     let res: Response;
@@ -571,8 +577,6 @@ export function ChatStream(props: ChatStreamProps) {
 
   return (
     <div className="flex min-h-0 w-full flex-1 gap-8">
-      {/* 呼吸动画样式：本组件加载态使用（question-progress 作用域外不可见） */}
-      <style>{BREATHE_CSS}</style>
       {/* 左栏（桌面）：答题卡 + 放弃面试 */}
       <aside className="hidden w-64 shrink-0 flex-col gap-6 lg:flex">
         <QuestionProgress
@@ -610,11 +614,11 @@ export function ChatStream(props: ChatStreamProps) {
           </Button>
         </div>
 
-        {/* 当前题干：考卷题干气质（黑体大字） */}
+        {/* 当前题干：考卷题干气质；max-h 兜底防长题干在固定视口里把输入区推出屏 */}
         {currentQuestion && (
-          <div className="border-b border-ink/15 pb-5">
+          <div className="max-h-[38vh] shrink-0 overflow-y-auto border-b border-ink/15 pb-5">
             <p className="font-mono text-xs tracking-[0.35em] text-pencil">
-              {copy.questionLabelPrefix} {safeIndex + 1} 题
+              {copy.questionLabelPrefix} {safeIndex + 1} {copy.questionLabelSuffix}
               {followupIdxs.includes(safeIndex) && (
                 <span className="ml-3 border border-ink/40 px-1.5 py-0.5 text-[10px] tracking-[0.2em] text-ink/70">
                   {copy.followupTag}
@@ -645,14 +649,15 @@ export function ChatStream(props: ChatStreamProps) {
         {/* 作答流：考官黑墨 / 候选人蓝墨 / 批改红章 */}
         <ol
           ref={scrollRef}
+          onScroll={handleFlowScroll}
           aria-label={copy.answerLabel}
           className="min-h-0 flex-1 space-y-6 overflow-y-auto py-6 pr-1"
         >
           {renderFlow()}
-          {/* 思忖行：填补「提交作答 → 评估完成 → 考官开口」的空窗（呼吸动画） */}
+          {/* 思忖行：填补「提交作答 → 评估完成 → 考官开口」的空窗（呼吸动画，铅笔灰=考官动作） */}
           {thinking && (
-            <li className="flex justify-center py-4">
-              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-ink-blue">
+            <li aria-live="polite" className="flex justify-center py-4">
+              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-pencil">
                 {copy.thinkingLabel}
               </p>
             </li>
@@ -661,7 +666,7 @@ export function ChatStream(props: ChatStreamProps) {
               加载行，避免「考官翻阅你的档案……」与流式题干同屏——输入仍禁用到流结束 */}
           {pendingGeneration && !questionList[safeIndex] && (
             <li className="flex justify-center py-4">
-              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-ink-blue">
+              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-pencil">
                 {COPY.realMode.loadingNext}
               </p>
             </li>
@@ -681,8 +686,9 @@ export function ChatStream(props: ChatStreamProps) {
           )}
           {isCompleted && (
             <li className="flex justify-center pt-4">
-              <div className="mirror-stamp-in border border-ink px-10 py-6 text-center">
-                <p className="font-heading text-2xl font-semibold tracking-[0.3em]">
+              <div className="border border-ink px-10 py-6 text-center">
+                {/* stamp-in 只落标题行：整块含按钮被动画终帧钉斜会读作渲染事故 */}
+                <p className="mirror-stamp-in font-heading text-2xl font-semibold tracking-[0.3em]">
                   {copy.gradingDoneTitle}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-ink/60">{copy.gradingDoneHint}</p>

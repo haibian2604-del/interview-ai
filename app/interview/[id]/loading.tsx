@@ -5,7 +5,7 @@ import { COPY } from "@/lib/copy";
 export default function Loading() {
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-10">
         <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
           {COPY.interview.loadingVolume}
         </p>
