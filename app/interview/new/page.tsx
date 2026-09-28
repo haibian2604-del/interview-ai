@@ -14,7 +14,7 @@ import { resumeDigest } from "@/lib/resume/profile-preview";
 
 type ResumeRow = { id: string; created_at: string; structured_json: unknown; raw_text: string | null; name: string | null };
 type InterviewType = "skill" | "project" | "behavioral" | "mixed";
-type Phase = "form" | "printing" | "binding";
+type Phase = "form" | "printing" | "binding" | "entering";
 
 const TYPE_OPTIONS: { value: InterviewType; label: string }[] = [
   { value: "skill", label: COPY.interviewNew.typeSkill },
@@ -65,6 +65,59 @@ const STAGE_KEYS = [
   "printingStageBind",
 ] as const;
 const STAGE_DELAYS_MS = [2500, 5000, 10000, 18000];
+
+// 「考官入场」过场（真实面试）：create 即时返回、无卷可装订，
+// 用短节拍（调卷→画像→开场）与练习模式保持同一仪式感，翻卷间隙由 loading 兜底接住
+const ENTER_STAGE_KEYS = [
+  "printingStageTune",
+  "printingStageProfile",
+  "printingStageOpen",
+] as const;
+const ENTER_STAGE_DELAYS_MS = [600, 1300];
+
+function EnteringPanel() {
+  const copy = COPY.interviewNew;
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    const timers = ENTER_STAGE_DELAYS_MS.map((ms, i) =>
+      window.setTimeout(() => setStage(i + 1), ms),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, []);
+  return (
+    <section
+      aria-busy="true"
+      aria-live="polite"
+      className="rounded-none border border-ink/15 bg-transparent"
+    >
+      <div className="border-b border-ink/15 px-6 py-5">
+        <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
+          {copy.stepThreeLabel}
+        </p>
+        <h2 className="mt-3 font-heading text-2xl font-semibold">
+          {copy.enteringTitle}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-ink/60">{copy.enteringHint}</p>
+      </div>
+      <div className="px-6 py-8">
+        {/* 节拍行：已过工序落墨、当前工序高亮、未到处极浅 + 循环活墨线 */}
+        <div className="flex items-center gap-3">
+          {ENTER_STAGE_KEYS.map((key, i) => (
+            <span
+              key={key}
+              className={`font-mono text-xs tracking-widest ${
+                i < stage ? "text-ink" : i === stage ? "text-ink/70" : "text-pencil/40"
+              }`}
+            >
+              {copy[key]}
+            </span>
+          ))}
+          <span aria-hidden className="mirror-print-cycle h-px flex-1 origin-left bg-ink/50" />
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function PrintingPanel({ count, done }: { count: number; done: boolean }) {
   const copy = COPY.interviewNew;
@@ -229,12 +282,15 @@ export default function InterviewNewPage() {
         | { interviewId?: string; error?: string }
         | null;
       if (res.ok && payload?.interviewId) {
-        // 成卷先于进场：盖章落定（~1s）再切路由，翻转卡顿为收束感；
-        // RSC 载入间隙由面试路由的 loading 兜底页接住。成功后不回表单（旧版闪回的根源）。
+        // 进场先于切页：练习=成卷盖章（~1s），真实=考官入场节拍（~2s），
+        // 翻卷间隙由面试路由的 loading 兜底页接住。成功后不回表单（旧版闪回的根源）。
         succeeded = true;
         if (mode === "practice") {
           setPhase("binding");
           await new Promise((resolve) => setTimeout(resolve, 950));
+        } else {
+          setPhase("entering");
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         router.push(`/interview/${payload.interviewId}`);
         return;
@@ -298,7 +354,11 @@ export default function InterviewNewPage() {
 
         {busy ? (
           <div className="mt-10">
-            <PrintingPanel count={count} done={phase === "binding"} />
+            {phase === "entering" ? (
+              <EnteringPanel />
+            ) : (
+              <PrintingPanel count={count} done={phase === "binding"} />
+            )}
           </div>
         ) : (
           <>
