@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
+import { getMaskedLlmSettings } from "@/lib/settings/service";
+import { optionalEnv } from "@/lib/env";
 import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { buttonVariants } from "@/components/ui/button";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
@@ -106,6 +108,14 @@ export default async function DashboardPage() {
   const interviews = (data ?? []) as InterviewRow[];
   const copy = COPY.dashboard;
 
+  // LLM 装备提醒分档：用户未配 + 系统默认也没有 → 红墨强提醒（出卷必失败）；
+  // 仅用户未配（在用系统默认）→ 铅笔灰温和引导去设置页
+  const masked = await getMaskedLlmSettings(user.id);
+  const userLlmReady = Boolean(masked.llmBaseUrl || masked.hasKey || masked.llmChatModel);
+  const envLlmReady = Boolean(
+    optionalEnv("LLM_BASE_URL") && optionalEnv("LLM_API_KEY") && optionalEnv("LLM_CHAT_MODEL"),
+  );
+
   // 登录者头像：GitHub OAuth 带 avatar_url；magic link 邮箱用户回落「姓名/邮箱首字」墨字章
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
   const avatarUrl = typeof meta.avatar_url === "string" ? meta.avatar_url : null;
@@ -162,6 +172,28 @@ export default async function DashboardPage() {
       </header>
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-10 pb-16 pt-10">
+        {!userLlmReady &&
+          (envLlmReady ? (
+            <p className="mb-6 border border-ink/20 bg-ink/[0.03] px-4 py-2 text-sm">
+              {copy.llmFallbackNotice}{" "}
+              <Link
+                href="/settings"
+                className="underline decoration-ink/30 underline-offset-4 hover:text-ink"
+              >
+                {copy.gotoSettings}
+              </Link>
+            </p>
+          ) : (
+            <div className="mb-6 border border-ink-red/60 bg-ink-red/[0.04] px-4 py-3 text-sm">
+              {copy.llmMissingNotice}{" "}
+              <Link
+                href="/settings"
+                className="underline decoration-ink-red/50 underline-offset-4 hover:decoration-ink-red"
+              >
+                {copy.gotoSettings}
+              </Link>
+            </div>
+          ))}
         {error ? (
           /* 查库失败：错误态渲染，不 crash */
           <ErrorAnnotation text={copy.loadFailed} />

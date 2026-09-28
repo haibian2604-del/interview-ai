@@ -60,6 +60,10 @@ export const COPY = {
     emptyHint: "评分簿还是空白册。登记第一场模拟面试，考官依你的简历出题批改。",
     emptyButton: "创建第一场模拟面试",
     loadFailed: "目录没有取回，请刷新本页。",
+    /** LLM 装备提醒（首页）：两档——系统与用户均未配（出卷会失败）/ 仅用户未配（在用系统默认） */
+    llmMissingNotice: "尚未登记 LLM 装备：出卷、批改与报告都无法进行。",
+    llmFallbackNotice: "当前使用系统默认 LLM 装备；建议登记你自己的端点与密钥（考生自备）。",
+    gotoSettings: "前往设置",
   },
   resumes: {
     title: "简历 · 面镜 Mirror",
