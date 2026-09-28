@@ -613,7 +613,7 @@ export function ChatStream(props: ChatStreamProps) {
                 </span>
               )}
             </p>
-            <h2 className="mt-3 text-xl font-bold leading-relaxed md:text-2xl">
+            <h2 className="mt-2 text-[15px] font-medium leading-7">
               {currentQuestion.content}
             </h2>
           </div>
