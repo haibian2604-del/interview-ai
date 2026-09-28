@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  PROJECT_GRILL,
-  getProjectGrillSkill,
   isProjectGrillApplicable,
   projectGrillFollowupDirectives,
   projectGrillQuestionContract,
@@ -37,7 +35,7 @@ describe("projectGrillQuestionContract（出题侧契约）", () => {
 
   it("契约要求锁定 Claim、skillTag 去重、followupAnchor 给下一层追问", () => {
     const contract = projectGrillQuestionContract();
-    expect(contract).toContain(PROJECT_GRILL.name);
+    expect(contract).toContain("项目题问穿");
     expect(contract).toContain("锁定简历中的一条具体 Claim");
     expect(contract).toContain("skillTag");
     expect(contract).toContain("followupAnchor");
@@ -82,15 +80,7 @@ describe("projectGrillFollowupDirectives（追问侧指令）", () => {
   });
 });
 
-describe("skill 工件（规范合规：skills/project-grill/ 按 元数据+工作流+references 三层组织）", () => {
-  it("SKILL.md frontmatter 解析：name 为 kebab-case 且与目录一致，description 声明触发条件", () => {
-    const skill = getProjectGrillSkill();
-    expect(skill.name).toBe(PROJECT_GRILL.id);
-    expect(skill.description).toContain("真实面试");
-    expect(skill.description).toContain("type=project");
-    expect(skill.body).toContain("适用条件");
-  });
-
+describe("skill 工件（skills/project-grill/ 载荷注入）", () => {
   it("追问模板占位符全部被代入，不残留 {{}} 与代码围栏", () => {
     const directives = projectGrillFollowupDirectives({
       anchor: "实时风控引擎",

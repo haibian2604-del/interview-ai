@@ -4,14 +4,12 @@ import path from "node:path";
 /**
  * 「项目题问穿」技能加载器（ZCode skill 规范工件：skills/project-grill/）。
  * SKILL.md 是唯一事实来源——frontmatter 为元数据（name/description），
- * references/ 下的文档即注入产品提示词的载荷；本模块只做读取、解析与代入。
+ * references/ 下的文档即注入产品提示词的载荷；本模块只做读取与代入。
  * 路径用字面量 + next.config 的 outputFileTracingIncludes 显式打包，
  * 防止 Vercel 文件追踪漏掉运行时 fs 读取的 markdown（读不到即抛错，宁响铃不带静默降级）。
  */
 
 const SKILL_ROOT = "skills/project-grill";
-
-export const PROJECT_GRILL = { id: "project-grill", name: "项目题问穿" } as const;
 
 /** 仅真实面试的项目题启用（practice 一次性出卷与非项目题维持通用链路） */
 export function isProjectGrillApplicable(mode: string, questionType: string): boolean {
@@ -20,26 +18,6 @@ export function isProjectGrillApplicable(mode: string, questionType: string): bo
 
 function readSkillFile(rel: string): string {
   return readFileSync(path.join(process.cwd(), SKILL_ROOT, rel), "utf8");
-}
-
-/** 极简 frontmatter 解析：仅支持 name/description 单行字段，不引 YAML 依赖 */
-function parseFrontmatter(raw: string): { name: string; description: string; body: string } {
-  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(raw);
-  if (!match) throw new Error("project-grill skill: SKILL.md 缺少 frontmatter");
-  const field = (key: string) => {
-    const m = new RegExp(`^${key}: (.+)$`, "m").exec(match[1]);
-    if (!m) throw new Error(`project-grill skill: frontmatter 缺少 ${key}`);
-    return m[1].trim();
-  };
-  return { name: field("name"), description: field("description"), body: match[2] };
-}
-
-let skillCache: { name: string; description: string; body: string } | null = null;
-
-/** SKILL.md 元数据（模块级缓存；dev 热更会重载模块，缓存生命周期安全） */
-export function getProjectGrillSkill() {
-  skillCache ??= parseFrontmatter(readSkillFile("SKILL.md"));
-  return skillCache;
 }
 
 /** 出题契约：references/question-contract.md 全文，注入 real 单题生成提示词 */
