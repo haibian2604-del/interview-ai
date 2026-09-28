@@ -22,7 +22,8 @@ export default async function SettingsPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
-      <div className="mx-auto w-full max-w-3xl px-10 py-14">
+      {/* 双列装备单（LLM / 语音识别分栏）：与简历库、面试页同宽的 6xl 版心 */}
+      <div className="mx-auto w-full max-w-6xl px-10 py-14">
         <BackButton className="mb-6" />
         {/* 卷首：与简历档案库同构 */}
         <header className="border-b border-ink/15 pb-8">

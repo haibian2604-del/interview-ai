@@ -40,7 +40,7 @@ function FieldSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-ink/15 px-6 py-6">
+    <section className="px-6 py-6">
       <p className="font-mono text-[10px] tracking-[0.35em] text-pencil uppercase">{eyebrow}</p>
       <label htmlFor={htmlFor} className="mt-4 block text-sm font-medium tracking-wide">
         {label}
@@ -280,12 +280,16 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
 
   return (
     <form
-      className="mt-10 border border-ink/15"
+      className="mt-10"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
       }}
     >
+      {/* 双列：左=LLM 对话装备（01-04），右=语音识别装备（可选，05-07）；卷脚按钮横贯全宽 */}
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+        {/* 左列 */}
+        <div className="divide-y divide-ink/15 border border-ink/15">
       {/* 01 · API 端点 */}
       <FieldSection
         eyebrow={copy.sectionEndpoint}
@@ -380,8 +384,12 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         />
       </FieldSection>
 
+        </div>
+
+        {/* 右列 */}
+        <div className="divide-y divide-ink/15 border border-ink/15">
       {/* 语音能力说明（可选装备的卷首批注） */}
-      <p className="border-b border-ink/15 px-6 py-4 text-xs leading-5 text-pencil">{copy.asrHeaderNote}</p>
+      <p className="px-6 py-4 text-xs leading-5 text-pencil">{copy.asrHeaderNote}</p>
 
       {/* 05 · 语音识别端点 */}
       <FieldSection
@@ -459,8 +467,11 @@ export function LlmSettingsForm({ initial }: { initial: MaskedLlmSettings }) {
         />
       </FieldSection>
 
-      {/* 卷脚：存档 + 测试连接 + 印刷语义结果行 */}
-      <footer className="px-6 py-6">
+        </div>
+      </div>
+
+      {/* 卷脚：存档 + 测试连接 + 印刷语义结果行（横贯双列全宽） */}
+      <footer className="mt-8">
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" className="rounded-none" disabled={busy}>
             {saving ? copy.saving : copy.saveButton}
