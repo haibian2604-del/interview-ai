@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
-import { getMaskedLlmSettings, listLlmUrlPresets } from "@/lib/settings/service";
+import { requireUser } from "@/lib/supabase/server";
+import { getMaskedLlmSettings } from "@/lib/settings/service";
 import { LlmSettingsForm } from "@/components/settings/llm-settings-form";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
@@ -16,12 +16,8 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  // 服务端壳直接取掩码形态作初始值（与 GET /api/settings 同一数据源，含端点预设）
-  const supabase = await createSupabaseServerClient();
-  const [masked, llmUrlPresets] = await Promise.all([
-    getMaskedLlmSettings(user.id),
-    listLlmUrlPresets(supabase),
-  ]);
+  // 服务端壳直接取掩码形态作初始值（与 GET /api/settings 同一数据源）
+  const masked = await getMaskedLlmSettings(user.id);
   const copy = COPY.settings;
 
   return (
@@ -42,7 +38,7 @@ export default async function SettingsPage() {
         </header>
 
         {/* 装备单：一页表单，七栏装备区（05-07 语音栏为可选装备） */}
-        <LlmSettingsForm initial={{ ...masked, llmUrlPresets }} />
+        <LlmSettingsForm initial={masked} />
       </div>
     </main>
   );

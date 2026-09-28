@@ -1,40 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { optionalEnv } from "@/lib/env";
 import { decryptSecret, maskSecret } from "@/lib/settings/crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type LlmConfig = { baseURL: string; apiKey: string; chatModel: string; evalModel?: string };
-
-/** 端点预设（llm_endpoint_presets 表行的展示形状） */
-export type LlmUrlPreset = { label: string; url: string };
-
-/** 未知形状的预设行防御性映射：缺字段/空串一律丢弃（种子数据脏行不该炸设置页） */
-export function mapPresetRows(
-  rows: { label: unknown; url: unknown }[] | null,
-): LlmUrlPreset[] {
-  return (rows ?? [])
-    .filter(
-      (r): r is { label: string; url: string } =>
-        typeof r?.label === "string" &&
-        typeof r?.url === "string" &&
-        r.label.trim() !== "" &&
-        r.url.trim() !== "",
-    )
-    .map((r) => ({ label: r.label, url: r.url }));
-}
-
-/** 系统级端点预设：读取失败/表未建（0007 未应用）视同无预设——纯便利功能，不阻塞设置页 */
-export async function listLlmUrlPresets(supabase: SupabaseClient): Promise<LlmUrlPreset[]> {
-  const { data, error } = await supabase
-    .from("llm_endpoint_presets")
-    .select("label, url")
-    .order("sort_order");
-  if (error) {
-    console.error("[settings] load llm_endpoint_presets failed:", error.message);
-    return [];
-  }
-  return mapPresetRows(data);
-}
 
 /** user_settings 行的 camelCase 形状（snake_case 列名由 service 层负责映射，铁律） */
 export type UserLlmSettings = {
