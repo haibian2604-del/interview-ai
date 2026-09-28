@@ -14,6 +14,8 @@ import { ErrorAnnotation } from "@/components/ui/error-annotation";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { QuestionProgress } from "@/components/interview/question-progress";
+import { MarkdownContent } from "@/components/interview/markdown-content";
+import { CandidateAvatar, ExaminerAvatar } from "@/components/interview/role-avatar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { VoiceInputButton } from "@/components/voice/voice-input-button";
 import { useVoiceRecorder } from "@/lib/voice/use-voice-recorder";
@@ -70,10 +72,11 @@ function parseScoresHeader(value: string | null): StampData | null {
 function ChatBubble({ message }: { message: ChatMessage }) {
   const copy = COPY.interview;
   if (message.role === "interviewer") {
-    // 面试官 = 黑墨笔迹（印刷体）
+    // 面试官 = 黑墨笔迹（印刷体），Markdown 渲染（粗体/列表/代码按评分簿世界规则）
     return (
       <li className="max-w-[52rem]">
         <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-pencil">
+          <ExaminerAvatar className="size-4 shrink-0" />
           {copy.examinerLabel}
           {message.isFollowupQuestion && (
             <span className="border border-ink/50 px-1.5 py-0.5 text-[10px] tracking-[0.2em] text-ink/70">
@@ -81,17 +84,22 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             </span>
           )}
         </p>
-        <p className="mt-1.5 whitespace-pre-wrap text-[15px] leading-7 text-ink">
-          {message.content || "……"}
-        </p>
+        {message.content ? (
+          <div className="mt-1.5">
+            <MarkdownContent content={message.content} />
+          </div>
+        ) : (
+          <p className="mt-1.5 text-[15px] leading-7 text-ink/40">……</p>
+        )}
       </li>
     );
   }
-  // 候选人 = 蓝墨作答（含追问轮回答）
+  // 候选人 = 蓝墨作答（含追问轮回答），原文渲染不解析
   return (
     <li className="flex justify-end">
       <div className="max-w-[44rem] border-l-2 border-ink-blue pl-4">
-        <p className="font-mono text-xs tracking-widest text-ink-blue/70">
+        <p className="flex items-center justify-end gap-2 font-mono text-xs tracking-widest text-ink-blue/70">
+          <CandidateAvatar className="size-4 shrink-0" />
           {copy.candidateLabel}
         </p>
         <p className="mt-1.5 whitespace-pre-wrap text-[15px] leading-7 text-ink-blue">
