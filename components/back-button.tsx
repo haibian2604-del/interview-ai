@@ -3,13 +3,18 @@
 import { useRouter } from "next/navigation";
 import { COPY } from "@/lib/copy";
 
-/** 评分簿「返回」按钮：回退浏览器历史，无历史（直达链接/刷新）时回落目录页 */
-export function BackButton({ className = "" }: { className?: string }) {
+/** 评分簿「返回」按钮：默认回退浏览器历史，无历史（直达链接/刷新）时回落目录页；
+ * 传 href 时固定跳转——评语册等终端页的「返回」语义是回目录，不是回退进已结束的卷面 */
+export function BackButton({ className = "", href }: { className?: string; href?: string }) {
   const router = useRouter();
   return (
     <button
       type="button"
       onClick={() => {
+        if (href) {
+          router.push(href);
+          return;
+        }
         if (window.history.length > 1) router.back();
         else router.push("/dashboard");
       }}

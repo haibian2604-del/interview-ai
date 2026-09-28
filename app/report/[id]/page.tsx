@@ -194,7 +194,7 @@ export default async function ReportPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-paper text-ink">
-      <BackButton className="mb-6" />
+      <BackButton className="mb-6" href="/dashboard" />
       {header}
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-10 pb-16 pt-10">
