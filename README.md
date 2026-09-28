@@ -52,7 +52,7 @@
 
 ## 简历档案库
 
-- PDF 上传（服务端 pdf-parse 抽取文本，扫描件拒收）与文本粘贴双入口；档案支持**自定义命名**
+- **PDF / Markdown / 文本粘贴**三入口：PDF 服务端抽取文本（扫描件拒收），Markdown 按 UTF-8 直读；档案支持**自定义命名**
 - 上传成功即**后台自动生成结构化画像**（LLM），不阻塞页面；档案卡展开即见**简历原文**（摘录 / 全文）+ 画像摘要与技能标签，生成中 / 失败重试就地反馈
 - 画像先行意味着首场面试免付画像分析等待
 
@@ -145,7 +145,7 @@ pnpm test
 ```
 app/
   api/
-    resume/parse/            # PDF 上传解析（pdf-parse，服务端）
+    resume/parse/            # PDF/Markdown 上传解析（pdf-parse / UTF-8 直读）
     resume/profile/          # 简历画像幂等生成（上传后预热 / 展开兜底共用）
     interview/create/        # 登记：练习=出卷；真实=即时返回待现场出题
     interview/start/         # 开始面试：首题（真实模式现场生成）+ 流式开场
@@ -199,7 +199,7 @@ tests/                       # vitest：orchestrator / agents / ai / interview /
 
 ## 已知边界
 
-- **仅支持 PDF 简历**（扫描件/图片型 PDF 无法抽取文本，会拒收）；文本粘贴是平等兜底入口。
+- **简历支持 PDF 与 Markdown（.md）**：扫描件/图片型 PDF 无法抽取文本会拒收；文本粘贴是平等兜底入口。
 - **语音输入已上线**（BYOK ASR，OpenAI 兼容 `/audio/transcriptions`）；语音**输出**（TTS）待后续。
 - **无练习额度**：登录用户暂无练习次数上限，可无限次开卷演练（额度/配额管控待后续）。
 - **整体桌面优先**：面试页为响应式固定视口（移动端可用），其余页面小屏为降级体验。

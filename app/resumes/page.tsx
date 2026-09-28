@@ -171,7 +171,7 @@ function NewArchiveCard({
           <input
             id="resume-file"
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,.md,.markdown"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full border border-ink/20 bg-transparent px-2.5 py-2 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-ink/70 focus-visible:border-ink-blue focus-visible:outline-none"
           />
