@@ -508,6 +508,17 @@ export function ChatStream(props: ChatStreamProps) {
   function renderFlow(): ReactNode[] {
     const items: ReactNode[] = [];
     messages.forEach((m, i) => {
+      // 题干唯一原则：当前题的出题气泡由题干区承载（大字钉在卷面上方），
+      // 流里不再重复渲染同文出题话术；本题推进后该消息自然重回流中成为实录。
+      // 追问话术、转场点评等内容性考官消息不受影响。
+      if (
+        m.role === "interviewer" &&
+        !m.isFollowupQuestion &&
+        m.questionIdx !== null &&
+        m.questionIdx === safeIndex
+      ) {
+        return;
+      }
       items.push(<ChatBubble key={m.id} message={m} />);
       const next = messages[i + 1];
       const lastOfGroup = !next || next.questionIdx !== m.questionIdx;
