@@ -170,6 +170,8 @@ export function ChatStream(props: ChatStreamProps) {
   const [abandonConfirmOpen, setAbandonConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nextError, setNextError] = useState<string | null>(null);
+  // 提交作答后、考官开口前的评估空窗指示（服务端批改约 5-10s）
+  const [thinking, setThinking] = useState(false);
 
   // SSR/水合首帧为 false，水合完成后 true（见上方 subscribeNever 注释）
   const voiceMounted = useSyncExternalStore(subscribeNever, getMounted, getServerMounted);
@@ -417,6 +419,8 @@ export function ChatStream(props: ChatStreamProps) {
       questionIdx: answeredIdx,
       isFollowupQuestion: false,
     });
+    // 评估在服务端先行（约 5-10s）：流式气泡出现前以「考官思忖中」补上空窗，免得像卡死
+    setThinking(true);
 
     let res: Response;
     try {
@@ -428,6 +432,7 @@ export function ChatStream(props: ChatStreamProps) {
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setDraft(text);
+      setThinking(false);
       setError(copy.answerFailed);
       setBusy(false);
       return;
@@ -436,6 +441,7 @@ export function ChatStream(props: ChatStreamProps) {
       // 作答未被接受：回滚乐观气泡
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setDraft(text);
+      setThinking(false);
       setError(errorForStatus(res, copy.answerFailed));
       setBusy(false);
       return;
@@ -445,6 +451,8 @@ export function ChatStream(props: ChatStreamProps) {
     const action = res.headers.get("X-Interview-Action") ?? "";
     const scores = parseScoresHeader(res.headers.get("X-Interview-Scores"));
 
+    // 考官气泡即将落卷，撤下思忖行
+    setThinking(false);
     await streamIntoBubble(res, {
       questionIdx: answeredIdx,
       isFollowupQuestion: action === "followup",
@@ -641,6 +649,14 @@ export function ChatStream(props: ChatStreamProps) {
           className="min-h-0 flex-1 space-y-6 overflow-y-auto py-6 pr-1"
         >
           {renderFlow()}
+          {/* 思忖行：填补「提交作答 → 评估完成 → 考官开口」的空窗（呼吸动画） */}
+          {thinking && (
+            <li className="flex justify-center py-4">
+              <p className="mirror-breathe font-mono text-xs tracking-[0.35em] text-ink-blue">
+                {copy.thinkingLabel}
+              </p>
+            </li>
+          )}
           {/* pendingGeneration 覆盖整个生成+流式过程；但题干一经入列（打字机开播）即撤下
               加载行，避免「考官翻阅你的档案……」与流式题干同屏——输入仍禁用到流结束 */}
           {pendingGeneration && !questionList[safeIndex] && (

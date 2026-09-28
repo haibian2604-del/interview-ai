@@ -202,6 +202,7 @@ export const COPY = {
     followupBadgeAria: "本题为追问轮",
     followupBadgeMark: "追",
     shortcutHint: "Enter 发送 · Shift+Enter 换行",
+    thinkingLabel: "考官思忖中……",
     skillTagLabel: "考察点",
     gradingDoneTitle: "阅卷完成",
     gradingDoneHint: "本场作答已全部收录评分簿，正在合卷生成报告。",
