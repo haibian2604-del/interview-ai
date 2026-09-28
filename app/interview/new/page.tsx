@@ -343,7 +343,7 @@ export default function InterviewNewPage() {
   return (
     <main className="min-h-screen bg-paper text-ink">
       <BackButton className="mb-6" />
-      <div className="mx-auto w-full max-w-3xl px-10 py-14">
+      <div className="mx-auto w-full max-w-6xl px-10 py-14">
         {/* 卷首 */}
         <header className="border-b border-ink/15 pb-8">
           <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
@@ -358,7 +358,7 @@ export default function InterviewNewPage() {
         </header>
 
         {busy ? (
-          <div className="mt-10">
+          <div className="mx-auto mt-10 max-w-3xl">
             {phase === "entering" ? (
               <EnteringPanel />
             ) : (
@@ -367,13 +367,10 @@ export default function InterviewNewPage() {
           </div>
         ) : (
           <>
-            {error && (
-              <div className="mt-6">
-                <ErrorAnnotation text={error} />
-              </div>
-            )}
-
-            <div className="mt-8 space-y-8">
+            {/* 双列：左=定模式+调卷（选择类），右=报岗+定题（填写类）；错误批注与提交横贯全宽 */}
+            <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+              {/* 左列 */}
+              <div className="space-y-8">
               {/* 第零步 · 定模式 */}
               <section className="rounded-none border border-ink/15 bg-transparent">
                 <StepHeader label={copy.modeSectionLabel} title={copy.modeLabel} hint={copy.modeRealDesc} />
@@ -488,6 +485,10 @@ export default function InterviewNewPage() {
                 </div>
               </section>
 
+          </div>
+
+          {/* 右列 */}
+          <div className="space-y-8">
               {/* 第二步 · 报岗：岗位 + JD */}
               <section className="rounded-none border border-ink/15 bg-transparent">
                 <StepHeader label={copy.stepTwoLabel} title={copy.stepTwoTitle} hint={copy.jdHint} />
@@ -668,14 +669,22 @@ export default function InterviewNewPage() {
                 </section>
               )}
 
-              <Button
-                className="h-11 w-full rounded-none text-base"
-                disabled={busy || submitting}
-                onClick={() => void create()}
-              >
-                {copy.submitButton}
-              </Button>
-            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-6">
+            <ErrorAnnotation text={error} />
+          </div>
+        )}
+
+        <Button
+          className="mt-6 h-11 w-full rounded-none text-base"
+          disabled={busy || submitting}
+          onClick={() => void create()}
+        >
+          {copy.submitButton}
+        </Button>
           </>
         )}
       </div>
