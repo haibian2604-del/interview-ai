@@ -117,35 +117,39 @@ export default async function InterviewPage({
   const copy = COPY.interview;
 
   return (
-    <main className="flex min-h-screen flex-col bg-paper text-ink">
-      <BackButton className="mb-6" />
-      {/* 卷首 */}
-      <header className="border-b border-ink/15 px-10 py-5">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-1">
-          <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
-            {copy.headerLabel}
-          </p>
-          <h1 className="font-heading text-xl font-semibold tracking-wide">
-            {interview.position}
-          </h1>
-          <p className="ml-auto font-mono text-xs tabular-nums text-pencil">
-            {COPY.common.volumeNo.replace("{no}", interview.id.slice(0, 8))}
-          </p>
-        </div>
-      </header>
+    // 应用式固定视口：页面自身不滚动（h-dvh + overflow-hidden），
+    // 作答流在卷面区内滚——左栏答题卡与底部输入框由此钉在原位
+    <main className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-10">
+        <BackButton className="mb-4 mt-5 self-start" />
+        {/* 卷首 */}
+        <header className="border-b border-ink/15 pb-4">
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+            <p className="font-mono text-xs tracking-[0.35em] text-pencil uppercase">
+              {copy.headerLabel}
+            </p>
+            <h1 className="font-heading text-xl font-semibold tracking-wide">
+              {interview.position}
+            </h1>
+            <p className="ml-auto font-mono text-xs tabular-nums text-pencil">
+              {COPY.common.volumeNo.replace("{no}", interview.id.slice(0, 8))}
+            </p>
+          </div>
+        </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col px-10 py-8">
-        <ChatStream
-          interviewId={interview.id}
-          initialStatus={interview.status}
-          initialCurrentIndex={interview.current_question_index}
-          initialMessages={initialMessages}
-          questions={questions}
-          initialStamps={initialStamps}
-          initialFollowupIdxs={initialFollowupIdxs}
-          mode={interview.mode === "real" ? "real" : "practice"}
-          targetQuestions={interview.target_questions}
-        />
+        <div className="flex min-h-0 flex-1 flex-col py-5">
+          <ChatStream
+            interviewId={interview.id}
+            initialStatus={interview.status}
+            initialCurrentIndex={interview.current_question_index}
+            initialMessages={initialMessages}
+            questions={questions}
+            initialStamps={initialStamps}
+            initialFollowupIdxs={initialFollowupIdxs}
+            mode={interview.mode === "real" ? "real" : "practice"}
+            targetQuestions={interview.target_questions}
+          />
+        </div>
       </div>
     </main>
   );
