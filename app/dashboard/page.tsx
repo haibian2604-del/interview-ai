@@ -139,10 +139,10 @@ export default async function DashboardPage() {
             <Link href="/interview/new" className={buttonVariants({ className: "rounded-none" })}>
               {copy.navNewInterview}
             </Link>
-            {/* 登录者头像：方角墨框与评分簿世界同构，title 悬停看身份 */}
+            {/* 登录者头像：圆形墨框（人物徽记破格用圆，区别于卷面方角结构），title 悬停看身份 */}
             <span
               title={String(displayName)}
-              className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-none border border-ink/30 bg-ink/[0.04] font-mono text-sm text-ink"
+              className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ink/30 bg-ink/[0.04] font-mono text-sm text-ink"
             >
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
