@@ -17,17 +17,21 @@ function LoginCover() {
   const [emailError, setEmailError] = useState(false);
   const [oauthError, setOauthError] = useState(false);
   const hasAuthError = searchParams.get("error") === "auth";
-  // B9：登录后回跳来源页——next 校验后拼进两条登录流的回调地址
+  // B9：登录后回跳来源页——next 校验后拼进两条登录流的回调地址。
+  // 拼接必须在事件处理器内做（window.location 浏览器才有）：渲染期取 location 会让 SSR 整页崩
   const next = safeNextPath(searchParams.get("next"));
-  const callbackUrl = next
-    ? `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`
-    : `${location.origin}/auth/callback`;
+  function buildCallbackUrl(): string {
+    const origin = window.location.origin;
+    return next
+      ? `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      : `${origin}/auth/callback`;
+  }
 
   async function sendMagicLink() {
     setEmailError(false);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: callbackUrl },
+      options: { emailRedirectTo: buildCallbackUrl() },
     });
     if (error) {
       setEmailError(true);
@@ -42,7 +46,7 @@ function LoginCover() {
       // B10：OAuth 发起失败（弹窗被拦 / 网络断 / provider 报错）不再静默，落错误批注
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
-        options: { redirectTo: callbackUrl },
+        options: { redirectTo: buildCallbackUrl() },
       });
       if (error) setOauthError(true);
     } catch {
