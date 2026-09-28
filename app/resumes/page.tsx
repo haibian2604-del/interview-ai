@@ -10,7 +10,14 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COPY } from "@/lib/copy";
 import { BackButton } from "@/components/back-button";
-import { resumeDigest, resumeProfilePreview, resumeRawExcerpt } from "@/lib/resume/profile-preview";
+import {
+  isMarkdownResume,
+  resumeDigest,
+  resumeProfilePreview,
+  resumeRawExcerpt,
+  stripMarkdown,
+} from "@/lib/resume/profile-preview";
+import { MarkdownContent } from "@/components/interview/markdown-content";
 
 type ResumeRow = {
   id: string;
@@ -249,7 +256,9 @@ function ResumeCard({
     structured_json: liveProfile ?? resume.structured_json,
     raw_text: resume.raw_text,
   });
-  const rawExcerpt = resumeRawExcerpt(resume.raw_text);
+  // Markdown 简历：摘录行读剥离后的纯文本，全文按 Markdown 渲染；PDF/粘贴档案维持纯文本
+  const isMarkdown = isMarkdownResume(resume.storage_path);
+  const rawExcerpt = resumeRawExcerpt(isMarkdown ? stripMarkdown(resume.raw_text ?? "") : resume.raw_text);
 
   // 幂等端点：已生成直接返回；展开兜底与上传预热并发时靠 generatingRef 去重
   async function ensureProfile() {
@@ -461,9 +470,15 @@ function ResumeCard({
             {rawExcerpt.text && (
               <div className="border-l-2 border-ink/20 pl-4">
                 {fullText ? (
-                  <div className="max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-ink/80">
-                    {resume.raw_text}
-                  </div>
+                  isMarkdown ? (
+                    <div className="max-h-72 overflow-y-auto">
+                      <MarkdownContent content={resume.raw_text ?? ""} />
+                    </div>
+                  ) : (
+                    <div className="max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-ink/80">
+                      {resume.raw_text}
+                    </div>
+                  )
                 ) : (
                   <p className="text-sm leading-6 text-ink/80">
                     {rawExcerpt.text}

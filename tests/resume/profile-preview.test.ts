@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resumeProfilePreview, resumeRawExcerpt } from "@/lib/resume/profile-preview";
+import {
+  isMarkdownResume,
+  resumeProfilePreview,
+  resumeRawExcerpt,
+  stripMarkdown,
+} from "@/lib/resume/profile-preview";
 
 describe("resumeProfilePreview", () => {
   it("从合法 structured_json 提取摘要与 skills 前 6 个", () => {
@@ -72,5 +77,37 @@ describe("resumeRawExcerpt", () => {
   it("自定义 limit 生效", () => {
     const view = resumeRawExcerpt("abcdefghij", 5);
     expect(view).toEqual({ text: "abcde", truncated: true });
+  });
+});
+
+describe("isMarkdownResume（按原件路径判定）", () => {
+  it(".md 不分大小写命中，pdf/粘贴（null）不命中", () => {
+    expect(isMarkdownResume("u/abc.MD")).toBe(true);
+    expect(isMarkdownResume("u/abc.markdown")).toBe(true);
+    expect(isMarkdownResume("u/abc.pdf")).toBe(false);
+    expect(isMarkdownResume(null)).toBe(false);
+  });
+});
+
+describe("stripMarkdown（纯文本摘录的轻量去标记）", () => {
+  it("标题/列表符/强调/行内代码剥离", () => {
+    const md = "# 个人简历\n## 基本信息\n- **姓名**：甘某\n* 城市：广州\n`Java` 开发";
+    expect(stripMarkdown(md)).toBe("个人简历\n基本信息\n姓名：甘某\n城市：广州\nJava 开发");
+  });
+
+  it("链接取文本、图片取 alt、转义符还原", () => {
+    const md = "邮箱：[\\_2604@qq\\.com](mailto:_2604@qq.com)\n![头像](a.png)";
+    expect(stripMarkdown(md)).toContain("_2604@qq.com");
+    expect(stripMarkdown(md)).toContain("头像");
+    expect(stripMarkdown(md)).not.toContain("mailto:");
+    expect(stripMarkdown(md)).not.toContain("\\_");
+  });
+
+  it("代码围栏保留内容、有序列表符剥离", () => {
+    const md = "1. 第一步\n```js\nconst a = 1;\n```\n正文";
+    const out = stripMarkdown(md);
+    expect(out).toContain("const a = 1;");
+    expect(out).not.toContain("```");
+    expect(out).toContain("第一步");
   });
 });
