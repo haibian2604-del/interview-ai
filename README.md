@@ -29,7 +29,9 @@
 
 ## 架构
 
-> 交互式架构图见 [docs/architecture-mirror.html](docs/architecture-mirror.html)（浏览器打开，支持明暗主题 / 路径追踪 / 缩放；规格源在同目录 `architecture-mirror.json`）。
+> 交互式版本见 [docs/architecture-mirror.html](docs/architecture-mirror.html)（浏览器打开，支持明暗主题 / 路径追踪 / 缩放；规格源在同目录 `architecture-mirror.json`）。
+
+![系统架构](docs/architecture-mirror.png)
 
 五个角色 Agent + 一个纯代码编排器。Agent = 独立人格 + 独立输出 schema（Zod）+ 独立模型配置；**编排器（状态机，纯代码，不占 LLM）是唯一事实来源**，决定「下一步做什么」，Agent 只负责各自领域的内容生成，彼此不互相对话、只通过编排器传递结构化产物。
 
